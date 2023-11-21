@@ -40,7 +40,7 @@ export class PingCommand extends Command {
                 .setName('send-embed')
                 .setDescription('Ping bot to see if it is alive')
             for (const propertyName in exampleEmbed) {
-                if (Object.prototype.hasOwnProperty.call(exampleEmbed, propertyName)) {
+                if (exampleEmbed.hasOwnProperty(propertyName)) {
                     if (exampleEmbed[propertyName as keyof EmbedData] instanceof Object) {
                         for (const [key, value] of Object.entries(exampleEmbed[propertyName as keyof EmbedData] as Record<string, string>)) {
                             b.addStringOption(option => option
@@ -87,6 +87,9 @@ export class PingCommand extends Command {
                     const propertyValue = propertyName === 'color' ? interaction.options.getInteger(propertyName) : interaction.options.getString(propertyName);
                     if (propertyValue) {
                         reformed[propertyName as keyof EmbedData] = propertyValue as unknown as undefined;
+                        if (propertyName === 'description') {
+                            reformed.description = reformed.description?.replace(/\\n/g, '\n')
+                        }
                     }
                 }
             }
