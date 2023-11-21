@@ -1,0 +1,126 @@
+{
+    "command": "register",
+    "description": "Register a new fantasy character",
+    "options": [
+        {
+            "name": "fullname",
+            "description": "The name of the character",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "sex",
+            "description": "The sex of the character",
+            "type": "STRING",
+            "required": true,
+            "choices": [
+                {
+                    "name": "Male",
+                    "value": "male"
+                },
+                {
+                    "name": "Female",
+                    "value": "female"
+                }
+            ]
+        },
+        {
+            "name": "race",
+            "description": "The race of the character",
+            "type": "STRING",
+            "required": true,
+            "choices": [
+                {
+                    "name": "Human",
+                    "value": "human"
+                },
+                {
+                    "name": "Elf",
+                    "value": "elf"
+                },
+                {
+                    "name": "Dwarf",
+                    "value": "dwarf"
+                }
+            ]
+        },
+        {
+            "name": "alias",
+            "description": "Any aliases the character goes by",
+            "type": "STRING",
+            "required": false
+        },
+        {
+            "name": "age",
+            "description": "The character's age",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "ethnicity",
+            "description": "The character's ethnicity",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "height",
+            "description": "The character's height",
+            "type": "STRING",
+            "required": false
+        },
+        {
+            "name": "weight",
+            "description": "The character's weight",
+            "type": "STRING",
+            "required": false
+        },
+        {
+            "name": "affiliation",
+            "description": "The character's affiliation",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "alignment",
+            "description": "The character's alignment",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "powers_and_abilities",
+            "description": "The character's powers and abilities",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "equipment",
+            "description": "The character's equipment",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "background",
+            "description": "The character's background",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "personality_traits",
+            "description": "The character's personality traits",
+            "type": "STRING",
+            "required": true
+        },
+        {
+            "name": "miscellaneous",
+            "description": "Miscellaneous information about the character",
+            "type": "STRING",
+            "required": false
+        },
+        {
+            "name": "appearance",
+            "description": "The character's appearance (pictures are recommended)",
+            "type": "STRING",
+            "required": false
+        }
+    ]
+}
