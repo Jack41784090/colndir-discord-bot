@@ -3,7 +3,7 @@ import { EmbedBuilder, Message } from 'discord.js';
 
 // PING: Sends a "followUp" to the server and returning, calculating the difference in timestamp to get an estimate on ping.
 export class PingCommand extends Command {
-    public constructor(context: Command.Context, options: Command.Options) {
+    public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {...options});
     }
 

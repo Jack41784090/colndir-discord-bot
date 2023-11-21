@@ -29,8 +29,8 @@ const exampleEmbed: EmbedData = {
     },
     fields: [],
 }
-export class PingCommand extends Command {
-    public constructor(context: Command.Context, options: Command.Options) {
+export class SendEmbedCommand extends Command {
+    public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {...options})
     }
 
