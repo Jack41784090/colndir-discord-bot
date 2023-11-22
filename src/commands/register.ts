@@ -173,7 +173,7 @@ export class RegisterCommand extends Command {
             characters: []
         };
         uinfo.characters.push(character);
-        const i = await SaveData("User", concerning_user.id, uinfo);
+        await SaveData("User", concerning_user.id, uinfo);
 
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${thread}`)] });
     }
