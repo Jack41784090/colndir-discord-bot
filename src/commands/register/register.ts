@@ -1,9 +1,9 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, PermissionFlagsBits } from 'discord.js';
 import dotenv from 'dotenv';
-import json from '../data/register.json';
-import { GetData, SaveData } from '../database';
-import { capitalize, formalise } from '../util/functions';
+import json from '../../data/register.json';
+import { GetData, SaveData } from '../../database';
+import { capitalize, empty_ud, formalise } from '../../util/functions';
 dotenv.config();
 
 // PING: Sends a "followUp" to the server and returning, calculating the difference in timestamp to get an estimate on ping.
@@ -161,14 +161,6 @@ export class RegisterCommand extends Command {
             }
         }
 
-        // database
-        console.log('Updating database');
-        const uinfo = await GetData("User", concerning_user.id) || {
-            characters: []
-        };
-        uinfo.characters.push(character);
-        await SaveData("User", concerning_user.id, uinfo);
-
         // create thread
         console.log('Creating thread');
         const thread = await forum.threads.create({
@@ -181,7 +173,15 @@ export class RegisterCommand extends Command {
             appliedTags: [tag.id]
         });
         character['thread'] = `https://discord.com/channels/${interaction.guildId}/${thread.id}`;
+        console.debug('character1', character);
         separated_embeds.forEach(e => thread.send({ embeds: [e] }));
+
+        // database
+        console.log('Updating database');
+        const uinfo = await GetData("User", concerning_user.id) || empty_ud();
+        console.debug('character2', character);
+        uinfo.characters.push(character);
+        await SaveData("User", concerning_user.id, uinfo);
 
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${thread}`)] });
     }
