@@ -35,7 +35,8 @@ export class SlashCommand extends Command {
                                 .addOptions(chars.map((char: any) => { return { label: char['fullname'], value: char['fullname'] } }))
                         )
                 ],
-                embeds: [ new EmbedBuilder().setTitle("Claim this face for your character:") ]
+                embeds: [ new EmbedBuilder().setTitle("Claim this face for your character:") ],
+                ephemeral: true
             });
         }
     }
