@@ -68,11 +68,11 @@ export class RegisterCommand extends Command {
             return interaction.followUp({ content: 'Error: Could not find or create "character-list" forum.' });            
         }
 
-        // members
-        console.log('Fetching members');
-        const members_collection = await interaction.guild?.members.fetch();
-        if (members_collection === undefined) return interaction.followUp({ content: 'Error: Could not fetch members.' });
-        const members = Array.from(members_collection.values()).filter(m => !m.user.bot);
+        // // members
+        // console.log('Fetching members');
+        // const members_collection = await interaction.guild?.members.fetch();
+        // if (members_collection === undefined) return interaction.followUp({ content: 'Error: Could not fetch members.' });
+        // const members = Array.from(members_collection.values()).filter(m => !m.user.bot);
 
         // // cannot use other servers' emojis
         // // emoji for tag
@@ -95,24 +95,31 @@ export class RegisterCommand extends Command {
         // tagging
         const concerning_user = interaction.options.getUser('user') || interaction.user;
         console.log('Tagging');
-        await forum.setAvailableTags(members.map(m => {
-            return ({ name: m.user.username })
-        }));
-        const tag = forum.availableTags.find(t => t.name === concerning_user.username);
-        if (tag === undefined) return interaction.followUp({ content: 'Error: Could not find tag.' });
-
-        // retagging old posts
-        console.log('Retagging old posts');
-        const fetched = await forum.threads.fetch();
-        for (const t of Array.from(fetched.threads.values())) {
-            const message = await t.messages.fetch();
-            if (message === undefined) continue;
-            const tagged_user = message.last()?.mentions.users.first();
-            if (tagged_user === undefined) continue;
-            const tag = forum.availableTags.find(t => t.name === tagged_user.username);
-            if (tag === undefined) continue;
-            await t.setAppliedTags([tag.id]);
+        let tag = forum.availableTags.find(t => t.name === concerning_user.username);
+        if (tag === undefined) {
+            await forum.setAvailableTags([...forum.availableTags.concat([{
+                name: concerning_user.username,
+                id: concerning_user.id,
+                emoji: null,
+                moderated: false
+            }])])
+            tag = forum.availableTags[forum.availableTags.length - 1];
         }
+
+        // // retagging old posts
+        // console.log('Retagging old posts');
+        // const fetched = await forum.threads.fetch();
+        // for (const t of Array.from(fetched.threads.values())) {
+        //     const message = await t.messages.fetch();
+        //     if (message === undefined) continue;
+        //     const tagged_user = message.last()?.mentions.users.first();
+        //     if (tagged_user === undefined) continue;
+        //     const tag = forum.availableTags.find(t => t.name === tagged_user.username);
+        //     if (tag === undefined) continue;
+        //     await t.setAppliedTags([tag.id]);
+        // }
+
+        // remove old tags
 
         // create embed
         console.log('Creating embed');
@@ -154,6 +161,14 @@ export class RegisterCommand extends Command {
             }
         }
 
+        // database
+        console.log('Updating database');
+        const uinfo = await GetData("User", concerning_user.id) || {
+            characters: []
+        };
+        uinfo.characters.push(character);
+        await SaveData("User", concerning_user.id, uinfo);
+
         // create thread
         console.log('Creating thread');
         const thread = await forum.threads.create({
@@ -167,14 +182,6 @@ export class RegisterCommand extends Command {
         });
         character['thread'] = `https://discord.com/channels/${interaction.guildId}/${thread.id}`;
         separated_embeds.forEach(e => thread.send({ embeds: [e] }));
-
-        // database
-        console.log('Updating database');
-        const uinfo = await GetData("User", concerning_user.id) || {
-            characters: []
-        };
-        uinfo.characters.push(character);
-        await SaveData("User", concerning_user.id, uinfo);
 
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${thread}`)] });
     }
