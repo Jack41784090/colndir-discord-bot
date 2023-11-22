@@ -165,6 +165,7 @@ export class RegisterCommand extends Command {
             },
             appliedTags: [tag.id]
         });
+        character['thread'] = `https://discord.com/channels/${interaction.guildId}/${thread.id}`;
         separated_embeds.forEach(e => thread.send({ embeds: [e] }));
 
         // database
