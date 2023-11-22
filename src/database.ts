@@ -2,7 +2,7 @@ import * as firebase_admin from 'firebase-admin';
 import * as app from 'firebase-admin/firestore';
 
 // Initialize Firebase app with your project configuration
-const serviceAccount = require('../../firebase_key.json');
+const serviceAccount = require('../firebase.json');
 firebase_admin.initializeApp({
     credential: firebase_admin.credential.cert(serviceAccount)
 });

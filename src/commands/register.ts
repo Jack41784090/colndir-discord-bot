@@ -1,12 +1,23 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
-import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel } from 'discord.js';
+import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, PermissionFlagsBits } from 'discord.js';
+import dotenv from 'dotenv';
 import json from '../data/register.json';
+import { GetData, SaveData } from '../database';
 import { capitalize, formalise } from '../util/functions';
+dotenv.config();
 
 // PING: Sends a "followUp" to the server and returning, calculating the difference in timestamp to get an estimate on ping.
 export class RegisterCommand extends Command {
+    static DESCRIPTION_LIMIT = 4096;
+    static FIELD_NAME_LIMIT = 256;
+    static FIELD_VALUE_LIMIT = 1024;
+    static NORM_CHAR_LIMIT = 2000;
+
     public constructor(context: Command.LoaderContext, options: Command.Options) {
-        super(context, {...options});
+        super(context, {
+            ...options,
+            requiredUserPermissions: [PermissionFlagsBits.Administrator]
+        });
     }
 
     public override async registerApplicationCommands(registry: ChatInputCommand.Registry) {
@@ -30,7 +41,11 @@ export class RegisterCommand extends Command {
                         .setRequired(j_option.required))
                 }
             }
-            
+            s_builder.addUserOption(option => option
+                .setName('user')
+                .setDescription('The user to register')
+                .setRequired(false));
+
             return s_builder;
         });
     }
@@ -53,30 +68,88 @@ export class RegisterCommand extends Command {
             return interaction.followUp({ content: 'Error: Could not find or create "character-list" forum.' });            
         }
 
+        // members
+        console.log('Fetching members');
+        const members_collection = await interaction.guild?.members.fetch();
+        if (members_collection === undefined) return interaction.followUp({ content: 'Error: Could not fetch members.' });
+        const members = Array.from(members_collection.values()).filter(m => !m.user.bot);
+
+        // // cannot use other servers' emojis
+        // // emoji for tag
+        // console.log('Fetching emojis');
+        // const emoji_server = await bot.guilds.fetch(process.env.EMOJI_SERVER_ID!);
+        // // const emoji_server = interaction.guild!;
+        // const emojis = await emoji_server.emojis.fetch();
+        // if (emojis === undefined) return interaction.followUp({ content: 'Error: Could not fetch emojis.' });
+        // const emoji_map = new Map<string, GuildEmoji>();
+        // for (const m of members) {
+        //     const link = `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`;
+        //     const emoji = emojis.find(e => e.name === m.user.id) ||
+        //         await emoji_server.emojis.create({
+        //             attachment: link,
+        //             name: m.user.id
+        //         });
+        //     emoji_map.set(m.user.id, emoji);
+        // }
+            
         // tagging
+        const concerning_user = interaction.options.getUser('user') || interaction.user;
         console.log('Tagging');
-        const members = await interaction.guild?.members.cache;
-        if (members === undefined) return interaction.followUp({ content: 'Error: Could not fetch members.' });
-        await forum.setAvailableTags(Array.from(members.values()).map(m => ({ name: m.user.username })));
-        const tag = forum.availableTags.find(t => t.name === interaction.user.username);
+        await forum.setAvailableTags(members.map(m => {
+            return ({ name: m.user.username })
+        }));
+        const tag = forum.availableTags.find(t => t.name === concerning_user.username);
         if (tag === undefined) return interaction.followUp({ content: 'Error: Could not find tag.' });
+
+        // retagging old posts
+        console.log('Retagging old posts');
+        const fetched = await forum.threads.fetch();
+        for (const t of Array.from(fetched.threads.values())) {
+            const message = await t.messages.fetch();
+            if (message === undefined) continue;
+            const tagged_user = message.last()?.mentions.users.first();
+            if (tagged_user === undefined) continue;
+            const tag = forum.availableTags.find(t => t.name === tagged_user.username);
+            if (tag === undefined) continue;
+            await t.setAppliedTags([tag.id]);
+        }
 
         // create embed
         console.log('Creating embed');
+        const separated_embeds: EmbedBuilder[] = [];
+        const character: Record<string,string> = {};
         const embed = new EmbedBuilder();
         for (const o of json.options) {
-            console.log(o.name);
+            character[o.name] = interaction.options.getString(o.name) || '';
             const value = interaction.options.getString(o.name);
-            if (value) {
-                console.log(`||=> ${value}`);
+            if (value && value.length <= RegisterCommand.FIELD_VALUE_LIMIT) {
                 switch (o.name) {
                     case 'fullname': {
                         embed.setTitle(value);
                         break;
                     }
                     default:
-                        embed.setDescription((embed.data.description || '') + `\`${formalise(o.name)}\`: ${capitalize(value)}\n`);
+                        embed.addFields({
+                            name: formalise(o.name),
+                            value: capitalize(value)
+                        });
                         break;
+                }
+            }
+            else if (value) {
+                const newEmbed = new EmbedBuilder();
+                newEmbed.setTitle(formalise(o.name));
+                if (value.length <= RegisterCommand.DESCRIPTION_LIMIT) {
+                    newEmbed.setDescription(`${capitalize(value)}\n`);
+                    separated_embeds.push(newEmbed);
+                }
+                else {
+                    const split = value.match(new RegExp(`.{1,${RegisterCommand.FIELD_VALUE_LIMIT}}`, 'g'));
+                    if (split === null) continue;
+                    for (const s of split) {
+                        newEmbed.setDescription(`${capitalize(s)}\n`);
+                    }
+                    separated_embeds.push(newEmbed);
                 }
             }
         }
@@ -84,13 +157,23 @@ export class RegisterCommand extends Command {
         // create thread
         console.log('Creating thread');
         const thread = await forum.threads.create({
-            name: embed.data.title || 'Character',
+            name: interaction.options.getString('fullname') || 'character',
             autoArchiveDuration: 1440,
             message: {
+                content: `${concerning_user}`,
                 embeds: [embed]
             },
             appliedTags: [tag.id]
         });
+        separated_embeds.forEach(e => thread.send({ embeds: [e] }));
+
+        // database
+        console.log('Updating database');
+        const uinfo = await GetData("User", concerning_user.id) || {
+            characters: []
+        };
+        uinfo.characters.push(character);
+        const i = await SaveData("User", concerning_user.id, uinfo);
 
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${thread}`)] });
     }
