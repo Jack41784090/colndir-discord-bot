@@ -173,13 +173,11 @@ export class RegisterCommand extends Command {
             appliedTags: [tag.id]
         });
         character['thread'] = `https://discord.com/channels/${interaction.guildId}/${thread.id}`;
-        console.debug('character1', character);
         separated_embeds.forEach(e => thread.send({ embeds: [e] }));
 
         // database
         console.log('Updating database');
         const uinfo = await GetData("User", concerning_user.id) || empty_ud();
-        console.debug('character2', character);
         uinfo.characters.push(character);
         await SaveData("User", concerning_user.id, uinfo);
 
