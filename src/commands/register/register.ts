@@ -36,7 +36,7 @@ export class RegisterCommand extends Command {
                 }
                 else {
                     s_builder.addStringOption(option => option
-                        .setName(j_option.name)
+                        .setName(`${j_option.name}`.toLowerCase())
                         .setDescription(j_option.description)
                         .setRequired(j_option.required))
                 }

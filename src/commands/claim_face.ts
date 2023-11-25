@@ -1,6 +1,7 @@
 import { Command } from '@sapphire/framework';
 import { ActionRowBuilder, ApplicationCommandType, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { GetData } from '../database';
+import { Character } from '../util/typedef';
 
 export class SlashCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -32,7 +33,7 @@ export class SlashCommand extends Command {
                             new StringSelectMenuBuilder()
                                 .setCustomId(`claim-face-menu_${interaction.targetId}`)
                                 .setPlaceholder('Select a reason')
-                                .addOptions(chars.map((char: any) => { return { label: char['fullname'], value: char['fullname'] } }))
+                                .addOptions(chars.map((char: Character) => { return { label: char['NAME'], value: char['NAME'] } }))
                         )
                 ],
                 embeds: [ new EmbedBuilder().setTitle("Claim this face for your character:") ],

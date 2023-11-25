@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { GetData, SaveData } from '../../database';
 dotenv.config();
 
-export class RegisterCommand extends Command {
+export class RefreshCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,

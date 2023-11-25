@@ -3,13 +3,13 @@
     "description": "Register a new fantasy character",
     "options": [
         {
-            "name": "fullname",
+            "name": "NAME",
             "description": "The name of the character",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "sex",
+            "name": "SEX",
             "description": "The sex of the character",
             "type": "STRING",
             "required": true,
@@ -25,7 +25,7 @@
             ]
         },
         {
-            "name": "race",
+            "name": "RACE",
             "description": "The race of the character",
             "type": "STRING",
             "required": true,
@@ -45,79 +45,79 @@
             ]
         },
         {
-            "name": "alias",
+            "name": "ALIAS",
             "description": "Any aliases the character goes by",
             "type": "STRING",
             "required": false
         },
         {
-            "name": "age",
+            "name": "AGE",
             "description": "The character's age",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "ethnicity",
+            "name": "ETHNICITY",
             "description": "The character's ethnicity",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "height",
+            "name": "HEIGHT",
             "description": "The character's height",
             "type": "STRING",
             "required": false
         },
         {
-            "name": "weight",
+            "name": "WEIGHT",
             "description": "The character's weight",
             "type": "STRING",
             "required": false
         },
         {
-            "name": "affiliation",
+            "name": "AFFILIATION",
             "description": "The character's affiliation",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "alignment",
+            "name": "ALIGNMENT",
             "description": "The character's alignment",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "powers_and_abilities",
+            "name": "POWERS_AND_ABILITIES",
             "description": "The character's powers and abilities",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "equipment",
+            "name": "EQUIPMENT",
             "description": "The character's equipment",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "background",
+            "name": "BACKGROUND",
             "description": "The character's background",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "personality_traits",
+            "name": "PERSONALITY_TRAITS",
             "description": "The character's personality traits",
             "type": "STRING",
             "required": true
         },
         {
-            "name": "miscellaneous",
+            "name": "MISCELLANEOUS",
             "description": "Miscellaneous information about the character",
             "type": "STRING",
             "required": false
         },
         {
-            "name": "appearance",
+            "name": "APPEARANCE",
             "description": "The character's appearance (pictures are recommended)",
             "type": "STRING",
             "required": false

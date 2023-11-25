@@ -2,6 +2,7 @@ import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework
 import { EmbedBuilder, ForumChannel, StringSelectMenuInteraction, ThreadChannel } from 'discord.js';
 import bot from '../../bot';
 import { GetData, SaveData } from '../../database';
+import { Character } from '../../util/typedef';
 
 export class InventorySelectHandler extends InteractionHandler {
     public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
@@ -31,7 +32,8 @@ export class InventorySelectHandler extends InteractionHandler {
         if (uid == undefined) return interaction.editReply('You do not have characters.');
 
         const chars = uid['characters'];
-        const char = chars.find((char: any) => char['fullname'] == selected);
+        const char: Character = chars.find((char: Character) => char['NAME'] == selected);
+        if (char === undefined) return interaction.editReply("Cannot find requested character.")
 
         const str = char['thread'].split('/');
         const thread = await bot.channels.fetch(str[str.length - 1]).catch((e) => {
@@ -54,7 +56,7 @@ export class InventorySelectHandler extends InteractionHandler {
 
         await thread.delete();
         const new_thread = await forum.threads.create({
-            name: char['fullname'],
+            name: char['NAME'],
             message: {
                 content: `${interaction.user}`,
                 embeds: [new_embed],

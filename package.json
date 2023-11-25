@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch-path=./dist dist/index.js",
     "rimraf": "./node_modules/rimraf/bin.js",
-    "clean" : "rimraf dist/",
+    "clean": "rimraf dist/",
     "compile": "npm run clean && tsc -p ./"
   },
   "dependencies": {
@@ -15,11 +15,12 @@
     "discord.js": "^14.7.1",
     "dotenv": "^16.0.3",
     "firebase": "^9.19.1",
-    "firebase-admin": "^11.6.0"
+    "firebase-admin": "^11.6.0",
+    "openai": "^4.20.0"
   },
   "devDependencies": {
-    "rimraf": "^5.0.1",
     "@types/node": "^20.2.1",
+    "rimraf": "^5.0.1",
     "typescript": "^5.0.4"
   }
 }
