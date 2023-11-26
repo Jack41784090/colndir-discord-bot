@@ -1,4 +1,4 @@
-import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, User } from 'discord.js';
+import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, Message, User } from 'discord.js';
 import dotenv from 'dotenv';
 import { RegisterCommand } from '../commands/register/register';
 import { GetData, SaveData } from '../database';
@@ -6,7 +6,7 @@ import { capitalize, empty_ud, formalise } from './functions';
 import { Character } from './typedef';
 dotenv.config();
 
-export async function register(guild: Guild, concerning_user: User, character: Character) {
+export async function register(guild: Guild, concerning_user: User, character: Character, original_messages?: Message[]) {
     // get/create forum
     console.log('Getting/creating forum');
     const channels = await guild.channels.fetch();
@@ -102,19 +102,23 @@ export async function register(guild: Guild, concerning_user: User, character: C
             }
         }
         else if (value) {
-            const newEmbed = new EmbedBuilder();
-            newEmbed.setTitle(formalise(key));
             if (value.length <= RegisterCommand.DESCRIPTION_LIMIT) {
+                const newEmbed = new EmbedBuilder();
+                newEmbed.setTitle(formalise(key));
                 newEmbed.setDescription(`${capitalize(value)}\n`);
                 separated_embeds.push(newEmbed);
             }
             else {
-                const split = value.match(new RegExp(`.{1,${RegisterCommand.FIELD_VALUE_LIMIT}}`, 'g'));
+                const split = value.match(new RegExp(`.{1,${RegisterCommand.DESCRIPTION_LIMIT}}`, 'g'));
                 if (split === null) continue;
-                for (const s of split) {
+                split.forEach((s, i) => {
+                    const newEmbed = new EmbedBuilder();
+                    if (i === 0) {
+                        newEmbed.setTitle(formalise(key));
+                    }
                     newEmbed.setDescription(`${capitalize(s)}\n`);
-                }
-                separated_embeds.push(newEmbed);
+                    separated_embeds.push(newEmbed);
+                })
             }
         }
     }
@@ -132,6 +136,12 @@ export async function register(guild: Guild, concerning_user: User, character: C
     });
     character['thread'] = `https://discord.com/channels/${guild.id}/${thread.id}`;
     separated_embeds.forEach(e => thread.send({ embeds: [e] }));
+    original_messages?.forEach(m => {
+        const split = m.content.match(new RegExp(`.{1,${RegisterCommand.NORM_CHAR_LIMIT}}`, 'g'));
+        if (split !== null) {
+            split.forEach(s => thread.send(s));
+        }
+    })
 
     // database
     console.log('Updating database');
