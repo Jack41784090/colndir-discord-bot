@@ -11,6 +11,12 @@ export function empty_ud(): Record<string, any> {
     };
 }
 
+export function NewObject<T extends object, T2 extends object>
+    (origin: T, _mod?: T2): T & T2
+{
+    const mod = (_mod || {}) as T2;
+    return Object.assign({...origin}, mod);
+}
 
 export function character(length: number): string {
     let result = '';
