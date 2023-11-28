@@ -65,7 +65,7 @@ export class InventorySelectHandler extends InteractionHandler {
         });
 
         char['thread'] = new_thread.url;
-        const i = chars.findIndex((char: any) => char['fullname'] == selected);
+        const i = chars.findIndex((char: Character) => char['NAME'] == selected);
         uid['characters'][i] = char;
         await SaveData('User', interaction.user.id, uid)
 

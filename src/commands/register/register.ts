@@ -56,10 +56,12 @@ export class RegisterCommand extends Command {
         const character: Record<string, string> = {};
         for (const o of json.options) {
             const key = o.name.toUpperCase();
-            character[key] = interaction.options.getString(o.name)!;
+            const o_key = key.toLowerCase();
+            character[key] = interaction.options.getString(o_key)!;
         }
+        
         const concerning_user = interaction.options.getUser('user') || interaction.user;
-        const thread = register(interaction.guild!, concerning_user, character as Character);
+        const thread = await register(interaction.guild!, concerning_user, character as Character);
 
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${thread}`)] });
     }
