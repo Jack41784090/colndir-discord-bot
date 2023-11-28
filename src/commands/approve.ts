@@ -1,28 +1,21 @@
 import { Command } from '@sapphire/framework';
-import { ApplicationCommandType, EmbedBuilder, Message, ThreadChannel } from 'discord.js';
+import { ApplicationCommandType, EmbedBuilder, Message, PermissionFlagsBits, TextChannel, ThreadChannel } from 'discord.js';
 import OpenAI from 'openai';
 import { register } from '../util/register';
 import { Character } from '../util/typedef';
 
 export class ApproveCommand extends Command {
+    static VALID_CHANNEL_NAMES = ['pending-characters', 'accepted-characters']
     openai: OpenAI;
     // init_step: Promise<unknown>[];
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
-            description: 'Approve a character from #pending-characters.'
+            description: 'Approve a character from #pending-characters.',
+            requiredUserPermissions: [PermissionFlagsBits.Administrator]
         });
         this.openai = new OpenAI()
-        // this.init_step = [this.init()];
     }
-
-    // async init() {
-    //     const completion = await this.openai.chat.completions.create({
-    //         messages: [{ role: "system", content: "You are an api that translates character summaries into json objects. Only return your messages in json objects." }],
-    //         model: "gpt-3.5-turbo",
-    //     });
-    //     return completion;
-    // }
 
     public override registerApplicationCommands(registry: Command.Registry) {
         registry.registerContextMenuCommand((builder) =>
@@ -34,6 +27,10 @@ export class ApproveCommand extends Command {
 
     public override async contextMenuRun(interaction: Command.ContextMenuCommandInteraction) {
         await interaction.deferReply();
+
+        if (!ApproveCommand.VALID_CHANNEL_NAMES.includes((interaction.channel as TextChannel).name)) {
+            return interaction.followUp(`Approved messages are not in ${ApproveCommand.VALID_CHANNEL_NAMES.map(cn => `'${cn}'`).join(' or ')} channel`);
+        }
 
         // fetch original message
         console.log("Fetch origin message")
