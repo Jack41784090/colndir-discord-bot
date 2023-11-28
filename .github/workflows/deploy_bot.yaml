@@ -44,7 +44,8 @@ jobs:
     steps:
     - name: Compile Typescript
       run: |
-        tsc
+        ls -la
+        tsc -b
     - name: Run npm run
       run: |
         npm run dev
