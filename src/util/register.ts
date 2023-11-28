@@ -134,14 +134,19 @@ export async function register(guild: Guild, concerning_user: User, character: C
         },
         appliedTags: [tag.id]
     });
-    character['thread'] = `https://discord.com/channels/${guild.id}/${thread.id}`;
+    character['thread'] = thread.url;
     separated_embeds.forEach(e => thread.send({ embeds: [e] }));
-    original_messages?.forEach(m => {
-        const split = m.content.match(new RegExp(`.{1,${RegisterCommand.NORM_CHAR_LIMIT}}`, 'g'));
-        if (split !== null) {
-            split.forEach(s => thread.send(s));
-        }
-    })
+    if (original_messages) {
+        original_messages.sort((a,b) => a.createdTimestamp - b.createdTimestamp);
+        thread.send({
+            embeds: [
+                new EmbedBuilder({
+                    title: `original message: ${original_messages[0].url}`,
+                    timestamp: original_messages[0].createdTimestamp
+                })
+            ]
+        })
+    }
 
     // database
     console.log('Updating database');
