@@ -33,9 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-    - name: Compile Typescript
-      run: |
-        tsc -b
+    - name: tsc compile
+      uses: iCrawl/action-tsc@v1
     - name: Run npm run
       run: |
         npm run dev
