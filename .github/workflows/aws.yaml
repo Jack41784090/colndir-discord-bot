@@ -12,13 +12,6 @@ jobs:
     name: Deploy to EC2 on master branch push
     runs-on: ubuntu-latest
 
-    env:
-      TARGET_DIR: ${{ secrets.TARGET_DIR }}
-      TOKEN: ${{secrets.TOKEN}}
-      FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
-      FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
-      FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
-
     steps:
       - uses: actions/checkout@v3
 
@@ -53,6 +46,11 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            export TARGET_DIR=${{ secrets.TARGET_DIR }}
+            export TOKEN=${{secrets.TOKEN}}
+            export FB_PROJECT_ID=${{secrets.FB_PROJECT_ID}}
+            export FB_PRIVATE_KEY=${{secrets.FB_PRIVATE_KEY}}
+            export FB_CLIENT_EMAIL=${{secrets.FB_CLIENT_EMAIL}}
             cd $TARGET_DIR
             npm run dev
 
