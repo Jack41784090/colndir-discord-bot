@@ -1,8 +1,6 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, PermissionFlagsBits } from 'discord.js';
-import dotenv from 'dotenv';
 import { GetData, SaveData } from '../../database';
-dotenv.config();
 
 export class RefreshCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {

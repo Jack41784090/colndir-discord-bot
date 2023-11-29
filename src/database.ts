@@ -2,9 +2,12 @@ import * as firebase_admin from 'firebase-admin';
 import * as app from 'firebase-admin/firestore';
 
 // Initialize Firebase app with your project configuration
-const serviceAccount = require('../firebase.json');
 firebase_admin.initializeApp({
-    credential: firebase_admin.credential.cert(serviceAccount)
+    credential: firebase_admin.credential.cert({
+        projectId: process.env['FB_PROJECT_ID'],
+        privateKey: process.env['FB_PRIVATE_KEY'],
+        clientEmail: process.env['FB_CLIENT_EMAIL'],
+    })
 });
 
 // Get a reference to the Firebase database service

@@ -52,5 +52,5 @@ jobs:
             export FB_PRIVATE_KEY=${{secrets.FB_PRIVATE_KEY}}
             export FB_CLIENT_EMAIL=${{secrets.FB_CLIENT_EMAIL}}
             cd $TARGET_DIR
-            npm run dev
+            npm run start
 

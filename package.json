@@ -4,6 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
+    "start": "node dist/index.js",
     "dev": "node --watch-path=./dist dist/index.js",
     "rimraf": "./node_modules/rimraf/bin.js",
     "clean": "rimraf dist/",
@@ -13,7 +14,6 @@
     "@sapphire/framework": "^4.1.0",
     "canvas": "^2.8.0",
     "discord.js": "^14.7.1",
-    "dotenv": "^16.0.3",
     "firebase": "^9.19.1",
     "firebase-admin": "^11.6.0",
     "openai": "^4.20.0"
