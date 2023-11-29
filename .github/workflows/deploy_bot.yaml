@@ -29,7 +29,8 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
     - name: tsc compile
-      uses: iCrawl/action-tsc@v1
+      run: |
+        tsc
     - name: Run npm run
       run: |
         npm run dev
