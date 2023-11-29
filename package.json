@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.2.1",
+    "forever": "^4.0.3",
     "rimraf": "^5.0.1",
     "typescript": "^5.0.4"
   }

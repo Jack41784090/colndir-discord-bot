@@ -5,7 +5,7 @@ import * as app from 'firebase-admin/firestore';
 firebase_admin.initializeApp({
     credential: firebase_admin.credential.cert({
         projectId: process.env['FB_PROJECT_ID'],
-        privateKey: process.env['FB_PRIVATE_KEY'],
+        privateKey: process.env['FB_PRIVATE_KEY']?.replace(/\\n/g, '\n'),
         clientEmail: process.env['FB_CLIENT_EMAIL'],
     })
 });
