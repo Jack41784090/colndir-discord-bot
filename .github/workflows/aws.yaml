@@ -38,7 +38,6 @@ jobs:
           REMOTE_HOST: ${{ secrets.HOST_DNS }}
           REMOTE_USER: ${{ secrets.USERNAME }}
           TARGET: ${{ secrets.TARGET_DIR }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: run commands on the EC2
         uses: appleboy/ssh-action@master
@@ -48,6 +47,7 @@ jobs:
           FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
           FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
           FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
@@ -55,5 +55,6 @@ jobs:
           envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY
           script: |
             cd $TARGET_DIR
-            npm run start
+            forever stopall
+            forever start ./dist/index.js
 
