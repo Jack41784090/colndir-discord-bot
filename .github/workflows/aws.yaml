@@ -55,6 +55,7 @@ jobs:
           envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY
           script: |
             cd $TARGET_DIR
+            npm install -g forever
             forever stopall
             forever start ./dist/index.js
 
