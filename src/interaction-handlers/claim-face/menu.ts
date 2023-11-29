@@ -18,11 +18,11 @@ export class InventorySelectHandler extends InteractionHandler {
         return this.some(id);
     }
 
-    public override async run(interaction: StringSelectMenuInteraction, received: string) {
+    public override async run(interaction: StringSelectMenuInteraction, target_messageID: string) {
         await interaction.deferReply();
 
         // get the message the interaction was pointing to
-        const requested_message = await interaction.channel?.messages.fetch(received);
+        const requested_message = await interaction.channel?.messages.fetch(target_messageID);
         if (requested_message == undefined) return interaction.followUp('Requested message not found.');
 
         // get the image in the requested message

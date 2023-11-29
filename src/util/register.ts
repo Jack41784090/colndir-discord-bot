@@ -5,6 +5,13 @@ import { capitalize, empty_ud, formalise } from './functions';
 import { Character } from './typedef';
 
 export async function register(guild: Guild, concerning_user: User, character: Character, original_messages?: Message[]) {
+    const uinfo = await GetData("User", concerning_user.id) || empty_ud();
+    const chars: Character[] = uinfo['characters'];
+    let c: Character | undefined;
+    if (chars && (c = chars.find(c => c.NAME === character.NAME))) {
+        return 'Error: Character is already registered under: ' + c['thread'];
+    }
+
     // get/create forum
     console.log('Getting/creating forum');
     const channels = await guild.channels.fetch();
@@ -69,8 +76,6 @@ export async function register(guild: Guild, concerning_user: User, character: C
     //     if (tag === undefined) continue;
     //     await t.setAppliedTags([tag.id]);
     // }
-
-    // remove old tags
 
     // create embed
     console.log('Creating embed');
@@ -148,7 +153,6 @@ export async function register(guild: Guild, concerning_user: User, character: C
 
     // database
     console.log('Updating database');
-    const uinfo = await GetData("User", concerning_user.id) || empty_ud();
     uinfo.characters.push(character);
     await SaveData("User", concerning_user.id, uinfo);
 

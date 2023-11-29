@@ -25,7 +25,7 @@ export class SlashCommand extends Command {
             const uid = await GetData('User', interaction.user.id);
             if (uid == undefined) return interaction.editReply('You do not have characters.');
 
-            const chars = uid['characters'];
+            const chars: Character[] = uid['characters'];
             return interaction.followUp({
                 components: [
                     new ActionRowBuilder<StringSelectMenuBuilder>()
@@ -33,7 +33,7 @@ export class SlashCommand extends Command {
                             new StringSelectMenuBuilder()
                                 .setCustomId(`claim-face-menu_${interaction.targetId}`)
                                 .setPlaceholder('Select a reason')
-                                .addOptions(chars.map((char: Character) => { return { label: char['NAME'], value: char['NAME'] } }))
+                                .addOptions(Array.from(new Set(chars.map(char => char.NAME))).map(cn => ({ label: cn, value: cn })))
                         )
                 ],
                 embeds: [ new EmbedBuilder().setTitle("Claim this face for your character:") ],
