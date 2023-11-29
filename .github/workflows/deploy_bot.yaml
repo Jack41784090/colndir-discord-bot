@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '14.x'                # set this to the node version to use
+  NODE_VERSION: '20.x'                # set this to the node version to use
   TOKEN: ${{secrets.TOKEN}}
   EMOJI_SERVER_ID: ${{secrets.EMOJI_SERVER_ID}}
   OPENAI_API_KEY: ${{secrets.OPENAI_API_KEY}}
