@@ -38,19 +38,22 @@ jobs:
           REMOTE_HOST: ${{ secrets.HOST_DNS }}
           REMOTE_USER: ${{ secrets.USERNAME }}
           TARGET: ${{ secrets.TARGET_DIR }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: run commands on the EC2
         uses: appleboy/ssh-action@master
+        env:
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
+          TOKEN: ${{secrets.TOKEN}}
+          FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
+          FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
+          FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY
           script: |
-            export TARGET_DIR=${{ secrets.TARGET_DIR }}
-            export TOKEN=${{secrets.TOKEN}}
-            export FB_PROJECT_ID=${{secrets.FB_PROJECT_ID}}
-            export FB_PRIVATE_KEY=${{secrets.FB_PRIVATE_KEY}}
-            export FB_CLIENT_EMAIL=${{secrets.FB_CLIENT_EMAIL}}
             cd $TARGET_DIR
             npm run start
 
