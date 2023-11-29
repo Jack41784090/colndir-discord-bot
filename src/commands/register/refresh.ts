@@ -1,6 +1,7 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, PermissionFlagsBits } from 'discord.js';
 import { GetData, SaveData } from '../../database';
+import { Character } from '../../util/typedef';
 
 export class RefreshCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -62,18 +63,18 @@ export class RefreshCommand extends Command {
         const ud = await GetData('User', interaction.user.id);
         if (ud == null) return interaction.followUp({ content: 'You have no characters.' });
         const threads = await forum.threads.fetch();
-        const refreshed_characters = ud['characters'].filter((c: any) => {
+        const refreshed_characters = ud['characters'].filter((c: Character) => {
             if (c['thread'] == undefined) return false;
             const thread_id = c['thread'].split('/').pop();
-            return threads.threads.has(thread_id);
+            return thread_id && threads.threads.has(thread_id);
         });
-        const removed_characters = ud['characters'].filter((c: any) => !refreshed_characters.includes(c));
+        const removed_characters = ud['characters'].filter((c: Character) => !refreshed_characters.includes(c));
         if (removed_characters.length > 0) await SaveData('User', interaction.user.id, { characters: refreshed_characters });
 
         return interaction.followUp({ embeds: [
             new EmbedBuilder()
                 .setTitle('Refreshed character list')
-                .setDescription(`Removed ${removed_tags.length} tags (${removed_tags.map(t => t.name).join(', ') || 'none removed'}).\nRemoved ${removed_characters.length} characters (${removed_characters.map((c: any) => c.fullname).join(', ') || 'none removed'}).`)
+                .setDescription(`Removed ${removed_tags.length} tags (${removed_tags.map(t => t.name).join(', ') || 'none removed'}).\nRemoved ${removed_characters.length} characters (${removed_characters.map((c: Character) => c.NAME).join(', ') || 'none removed'}).`)
         ] });
     }
 }
