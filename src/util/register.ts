@@ -4,7 +4,7 @@ import { GetData, SaveData } from './database';
 import { capitalize, empty_ud, formalise } from './functions';
 import { Character } from './typedef';
 
-export async function register(guild: Guild, concerning_user: User, character: Character, original_messages?: Message[]) {
+export async function register(guild: Guild, concerning_user: User, character: Character, original_message?: Message) {
     const uinfo = await GetData("User", concerning_user.id) || empty_ud();
     const chars: Character[] = uinfo['characters'];
     let c: Character | undefined;
@@ -139,13 +139,13 @@ export async function register(guild: Guild, concerning_user: User, character: C
     });
     character['thread'] = thread.url;
     separated_embeds.forEach(e => thread.send({ embeds: [e] }));
-    if (original_messages) {
-        original_messages.sort((a,b) => a.createdTimestamp - b.createdTimestamp);
+    if (original_message) {
+        // original_message.sort((a,b) => a.createdTimestamp - b.createdTimestamp);
         thread.send({
             embeds: [
                 new EmbedBuilder({
-                    title: `original message: ${original_messages[0].url}`,
-                    timestamp: original_messages[0].createdTimestamp
+                    title: `original message: ${original_message.url}`,
+                    timestamp: original_message.createdTimestamp
                 })
             ]
         })
