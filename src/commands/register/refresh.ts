@@ -1,6 +1,6 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, PermissionFlagsBits } from 'discord.js';
-import { GetData, SaveData } from '../../database';
+import { GetData, SaveData } from '../../util/database';
 import { Character } from '../../util/typedef';
 
 export class RefreshCommand extends Command {

@@ -1,6 +1,6 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
-import { GetData } from '../database';
+import { GetData } from '../util/database';
 
 export class MyCharacterCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {

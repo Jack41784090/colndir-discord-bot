@@ -1,7 +1,7 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import { EmbedBuilder, ForumChannel, StringSelectMenuInteraction, ThreadChannel } from 'discord.js';
 import bot from '../../bot';
-import { GetData } from '../../database';
+import { GetData } from '../../util/database';
 import { Character } from '../../util/typedef';
 
 export class InventorySelectHandler extends InteractionHandler {

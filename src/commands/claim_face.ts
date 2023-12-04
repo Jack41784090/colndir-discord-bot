@@ -1,6 +1,6 @@
 import { Command } from '@sapphire/framework';
 import { ActionRowBuilder, ApplicationCommandType, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
-import { GetData } from '../database';
+import { GetData } from '../util/database';
 import { Character } from '../util/typedef';
 
 export class SlashCommand extends Command {
