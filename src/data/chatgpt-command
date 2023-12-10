@@ -1,0 +1,1 @@
+Summarise the NAME, ALIAS, AGE, SEX, ETHNICITY, HEIGHT, WEIGHT, RACE, AFFILIATION, ALIGNMENT, POWERS AND ABILITIES, EQUIPMENT, BACKGROUND, and PERSONALITY TRAITS of this character. Return your message only in a json object. Make sure the keys are capitalised. Use only string-type values. If you can't find any relating data, set the value as an empty string. Here's the character:

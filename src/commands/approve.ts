@@ -1,5 +1,6 @@
 import { Command } from '@sapphire/framework';
 import { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, TextChannel, ThreadChannel } from 'discord.js';
+import { readFileSync } from 'fs';
 import OpenAI from 'openai';
 import { getGoogleDoc } from '../util/database';
 import { register } from '../util/register';
@@ -75,11 +76,10 @@ export class ApproveCommand extends Command {
                 }
             }
         }
-        console.log(story.join('\n'));
 
         // send request to gpt
         console.log("Request to GPT")
-        const command = "Summarise the NAME, ALIAS, AGE, SEX, ETHNICITY, HEIGHT, WEIGHT, RACE, AFFILIATION, ALIGNMENT, POWERS AND ABILITIES, EQUIPMENT, BACKGROUND, and PERSONALITY TRAITS of this character. Return your message only in a json object. Make sure the keys are capitalised. Use only string-type values. Here's the character:"
+        const command = readFileSync('./src/data/chatgpt-command', 'utf8');
         const story_content = story.join('\n');
         const comp = await this.openai.chat.completions.create({
             messages: [{
