@@ -3,11 +3,13 @@ import { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, TextChannel,
 import { readFileSync } from 'fs';
 import OpenAI from 'openai';
 import { getGoogleDoc } from '../util/database';
+import { cutDownLength, getErrorEmbed } from '../util/functions';
 import { register } from '../util/register';
 import { Character } from '../util/typedef';
 import { RegisterCommand } from './register/register';
 
 export class ApproveCommand extends Command {
+    static GPT_LIMIT = 4097;
     static VALID_CHANNEL_NAMES = ['pending-characters', 'accepted-characters']
     openai: OpenAI;
     // init_step: Promise<unknown>[];
@@ -81,11 +83,14 @@ export class ApproveCommand extends Command {
         // send request to gpt
         console.log("Request to GPT")
         const command = readFileSync('./src/data/chatgpt-command', 'utf8');
-        const story_content = story.join('\n');
+        const story_content = cutDownLength(`${command}\n\n${story.join('\n')}`, ApproveCommand.GPT_LIMIT);
+        if (story_content === null) {
+            return interaction.followUp({ embeds: [getErrorEmbed('Trouble cutting down story content before request to GPT.')] });
+        }
         const comp = await this.openai.chat.completions.create({
             messages: [{
                 role: "user",
-                content: `${command}\n\n${story_content}`,
+                content: story_content,
             }],
             model: "gpt-3.5-turbo"
         });
@@ -101,11 +106,11 @@ export class ApproveCommand extends Command {
                 return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${r}`)] });
             }
             else {
-                return interaction.followUp({ content: `${r}\ncontent:${response}`.match(new RegExp(`.{1,${RegisterCommand.DESCRIPTION_LIMIT}}`, 'g'))?.[0] || 'Thread Creation Error. Contact Ike.' });
+                return interaction.followUp({ content: cutDownLength(`${r}\ncontent:${response}`, RegisterCommand.DESCRIPTION_LIMIT) || 'Thread Creation Error. Contact Ike.' });
             }
         }
         catch (e) {
-            return interaction.followUp({ content: `${JSON.stringify(e)}\ncontent:${response}` });
+            return interaction.followUp({ content: cutDownLength(`${JSON.stringify(e)}\ncontent:${response}`, RegisterCommand.DESCRIPTION_LIMIT) || 'Bot encountered an error while parsing GPT response.' });
         }
     }
 }

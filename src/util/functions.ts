@@ -1,3 +1,5 @@
+import { Colors, EmbedBuilder, EmbedData } from "discord.js";
+
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
@@ -25,4 +27,29 @@ export function character(length: number): string {
         result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return result;
+}
+
+export function cutDownLength(string: string, limit: number) {
+    return string.match(new RegExp(`.{1,${limit}}`, 'g'))?.[0] || null;
+}
+
+export function getErrorEmbed(message: string, options?: Partial<EmbedData>) {
+    const b: EmbedData = {
+        title: "Warning!",
+        footer: {
+            text: message
+        },
+        color: Colors.Red
+    };
+    return new EmbedBuilder(Object.assign(b, options))
+}
+export function getGreenflagEmbed(message: string, options?: Partial<EmbedData>) {
+    const b: EmbedData = {
+        title: "Done.",
+        footer: {
+            text: message
+        },
+        color: Colors.Green
+    };
+    return new EmbedBuilder(Object.assign(b, options))
 }
