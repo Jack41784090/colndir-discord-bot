@@ -30,9 +30,9 @@ export function character(length: number): string {
 }
 
 export function cutDownLength(string: string, limit: number) {
-    const match = string.match(new RegExp(`.{1,${limit}}`, 'g'));
+    const match = string.match(new RegExp(`[\\s\\S]{1,${limit}}`, 'g'));
     // console.log(match);
-    return match?.join('\n') || null;
+    return match?.[0] || null;
 }
 
 export function getErrorEmbed(message: string, options?: Partial<EmbedData>) {

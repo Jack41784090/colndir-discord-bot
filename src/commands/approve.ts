@@ -83,7 +83,9 @@ export class ApproveCommand extends Command {
         // send request to gpt
         console.log("Request to GPT")
         const command = readFileSync('./src/data/chatgpt-command', 'utf8');
-        const story_content = cutDownLength(`${command}\n\n${story.join('\n')}`, ApproveCommand.GPT_LIMIT);
+        const c = `${command}\n${story.join('\n')}`;
+        // const story_content = cutDownLength(c, ApproveCommand.GPT_LIMIT);
+        const story_content = c;
         if (story_content === null) {
             return interaction.followUp({ embeds: [getErrorEmbed('Trouble cutting down story content before request to GPT.')] });
         }
@@ -93,7 +95,7 @@ export class ApproveCommand extends Command {
                 role: "user",
                 content: story_content,
             }],
-            model: "gpt-3.5-turbo"
+            model: "gpt-3.5-turbo-16k"
         });
 
         // deal with response
@@ -107,11 +109,11 @@ export class ApproveCommand extends Command {
                 return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${r}`)] });
             }
             else {
-                return interaction.followUp({ content: cutDownLength(`${r}\ncontent:${response}`, RegisterCommand.DESCRIPTION_LIMIT) || 'Thread Creation Error. Contact Ike.' });
+                return interaction.followUp({ content: cutDownLength(`${r}\ncontent:${response}`, RegisterCommand.NORM_CHAR_LIMIT) || 'Thread Creation Error. Contact Ike.' });
             }
         }
         catch (e) {
-            return interaction.followUp({ content: cutDownLength(`${JSON.stringify(e)}\ncontent:${response}`, RegisterCommand.DESCRIPTION_LIMIT) || 'Bot encountered an error while parsing GPT response.' });
+            return interaction.followUp({ content: cutDownLength(`${JSON.stringify(e)}\ncontent:${response}`, RegisterCommand.NORM_CHAR_LIMIT) || 'Bot encountered an error while parsing GPT response.' });
         }
     }
 }
