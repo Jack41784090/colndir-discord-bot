@@ -16,7 +16,7 @@ export async function register(guild: Guild, concerning_user: User, character: C
     console.log('Getting/creating forum');
     const channels = await guild.channels.fetch();
     if (channels === undefined) return 'Error: Could not fetch channels.';
-    const category = channels.find(c => c?.type === ChannelType.GuildCategory && c.name === 'Character RP Category') as CategoryChannel;
+    const category = channels.find(c => c?.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'character rp category') as CategoryChannel;
     if (category === undefined) return 'Error: Could not find "Character RP Category" category.';
     const forum = channels.find(c => c?.type === ChannelType.GuildForum && c.name === 'character-list') as ForumChannel || await guild.channels.create({
         parent: category,

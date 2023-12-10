@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 import { getGoogleDoc } from '../util/database';
 import { register } from '../util/register';
 import { Character } from '../util/typedef';
+import { RegisterCommand } from './register/register';
 
 export class ApproveCommand extends Command {
     static VALID_CHANNEL_NAMES = ['pending-characters', 'accepted-characters']
@@ -100,7 +101,7 @@ export class ApproveCommand extends Command {
                 return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${r}`)] });
             }
             else {
-                return interaction.followUp({ content: `${r}\ncontent:${response}` });
+                return interaction.followUp({ content: `${r}\ncontent:${response}`.match(new RegExp(`.{1,${RegisterCommand.DESCRIPTION_LIMIT}}`, 'g'))?.[0] || 'Thread Creation Error. Contact Ike.' });
             }
         }
         catch (e) {
