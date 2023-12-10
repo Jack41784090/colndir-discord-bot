@@ -27,7 +27,7 @@ export class MyCharacterCommand extends Command {
                 icon_url: interaction.user.avatarURL() || undefined
             },
             title: 'Your Characters',
-            description: `${ud.characters.map((c: Record<string, string>) => `\n- ${c['thread']}`).join('\n')}`,
+            description: `${ud.characters.map((c: Record<string, string>) => `\n- ${c['thread']}`).join('')}`,
         });
 
         return interaction.editReply({ embeds: [embed] });

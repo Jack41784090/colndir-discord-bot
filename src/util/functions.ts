@@ -30,7 +30,9 @@ export function character(length: number): string {
 }
 
 export function cutDownLength(string: string, limit: number) {
-    return string.match(new RegExp(`.{1,${limit}}`, 'g'))?.[0] || null;
+    const match = string.match(new RegExp(`.{1,${limit}}`, 'g'));
+    // console.log(match);
+    return match?.join('\n') || null;
 }
 
 export function getErrorEmbed(message: string, options?: Partial<EmbedData>) {

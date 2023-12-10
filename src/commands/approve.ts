@@ -87,6 +87,7 @@ export class ApproveCommand extends Command {
         if (story_content === null) {
             return interaction.followUp({ embeds: [getErrorEmbed('Trouble cutting down story content before request to GPT.')] });
         }
+        console.log(story_content);
         const comp = await this.openai.chat.completions.create({
             messages: [{
                 role: "user",
