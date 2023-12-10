@@ -1,5 +1,5 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
-import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, PermissionFlagsBits } from 'discord.js';
+import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel } from 'discord.js';
 import { GetData, SaveData } from '../../util/database';
 import { Character } from '../../util/typedef';
 
@@ -7,7 +7,6 @@ export class RefreshCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
-            requiredUserPermissions: [PermissionFlagsBits.Administrator]
         });
     }
 
