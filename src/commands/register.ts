@@ -1,8 +1,8 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import json from '../../data/register.json';
-import { register } from '../../util/register';
-import { Character } from '../../util/typedef';
+import json from '../data/register.json';
+import { register } from '../util/register';
+import { Character } from '../util/typedef';
 
 // PING: Sends a "followUp" to the server and returning, calculating the difference in timestamp to get an estimate on ping.
 export class RegisterCommand extends Command {

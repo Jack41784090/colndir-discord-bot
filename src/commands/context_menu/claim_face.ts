@@ -1,9 +1,9 @@
 import { Command } from '@sapphire/framework';
 import { ActionRowBuilder, ApplicationCommandType, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
-import { GetData } from '../util/database';
-import { Character } from '../util/typedef';
+import { GetData } from '../../util/database';
+import { Character } from '../../util/typedef';
 
-export class SlashCommand extends Command {
+export class ClaimFaceContextMenu extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
@@ -20,7 +20,7 @@ export class SlashCommand extends Command {
     }
 
     public override async contextMenuRun(interaction: Command.ContextMenuCommandInteraction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ ephemeral: true });
         if (interaction.isMessageContextMenuCommand()) {
             const uid = await GetData('User', interaction.user.id);
             if (uid == undefined) return interaction.editReply('You do not have characters.');
@@ -32,7 +32,7 @@ export class SlashCommand extends Command {
                         .addComponents(
                             new StringSelectMenuBuilder()
                                 .setCustomId(`claim-face-menu_${interaction.targetId}`)
-                                .setPlaceholder('Select a reason')
+                                .setPlaceholder('Select a character')
                                 .addOptions(Array.from(new Set(chars.map(char => char.NAME))).map(cn => ({ label: cn, value: cn })))
                         )
                 ],

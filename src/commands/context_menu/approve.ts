@@ -2,13 +2,13 @@ import { Command } from '@sapphire/framework';
 import { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, TextChannel, ThreadChannel } from 'discord.js';
 import { readFileSync } from 'fs';
 import OpenAI from 'openai';
-import { getGoogleDoc } from '../util/database';
-import { cutDownLength, getErrorEmbed } from '../util/functions';
-import { register } from '../util/register';
-import { Character } from '../util/typedef';
-import { RegisterCommand } from './register/register';
+import { getGoogleDoc } from '../../util/database';
+import { cutDownLength, getErrorEmbed } from '../../util/functions';
+import { register } from '../../util/register';
+import { Character } from '../../util/typedef';
+import { RegisterCommand } from '../register';
 
-export class ApproveCommand extends Command {
+export class ApproveContextMenu extends Command {
     static GPT_LIMIT = 4097;
     static VALID_CHANNEL_NAMES = ['pending-characters', 'accepted-characters']
     openai: OpenAI;
@@ -33,8 +33,8 @@ export class ApproveCommand extends Command {
     public override async contextMenuRun(interaction: Command.ContextMenuCommandInteraction) {
         await interaction.deferReply();
 
-        if (!ApproveCommand.VALID_CHANNEL_NAMES.includes((interaction.channel as TextChannel).name)) {
-            return interaction.followUp(`Approved messages are not in ${ApproveCommand.VALID_CHANNEL_NAMES.map(cn => `'${cn}'`).join(' or ')} channel`);
+        if (!ApproveContextMenu.VALID_CHANNEL_NAMES.includes((interaction.channel as TextChannel).name)) {
+            return interaction.followUp(`Approved messages are not in ${ApproveContextMenu.VALID_CHANNEL_NAMES.map(cn => `'${cn}'`).join(' or ')} channel`);
         }
 
         // fetch original message

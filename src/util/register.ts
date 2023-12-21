@@ -1,5 +1,5 @@
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, Message, User } from 'discord.js';
-import { RegisterCommand } from '../commands/register/register';
+import { RegisterCommand } from '../commands/register';
 import { GetData, SaveData } from './database';
 import { capitalize, empty_ud, formalise } from './functions';
 import { Character } from './typedef';
