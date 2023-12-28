@@ -33,6 +33,8 @@ jobs:
 
       - name: move everything to EC2
         uses: easingthemes/ssh-deploy@main
+        with:
+          ARGS: "--delete"
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.HOST_DNS }}
