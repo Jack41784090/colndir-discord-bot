@@ -51,7 +51,7 @@ jobs:
           FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLEAPI_PRIVATE_KEY: ${{secrets.GOOGLEAPI_PRIVATE_KEY}}
-          GOGGLEAPI_CLIENT_EMAIL: ${{secrets.GOGGLEAPI_CLIENT_EMAIL}}
+          GOOGLEAPI_CLIENT_EMAIL: ${{secrets.GOOGLEAPI_CLIENT_EMAIL}}
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
