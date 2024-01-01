@@ -85,13 +85,8 @@ export class ApproveContextMenu extends Command {
         // google doc submission
         else if (m2) {
             const response = await getGoogleDoc(m2);
-            if (response instanceof Response) {
-                if (response.status === 200) {
-                    story.push(await response.text());
-                }
-                else {
-                    return await interaction.followUp(`Error: Cannot reach the requested document: ${response.status} (meaning: [${response.statusText}])`);
-                }
+            if (typeof response === 'string') {
+                story.push(response);
             }
             else {
                 return await interaction.followUp(`Error: ${response?.toString()}\n\`\`\`${response}\`\`\``);
