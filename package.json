@@ -11,12 +11,13 @@
     "compile": "npm run clean && tsc -p ./"
   },
   "dependencies": {
-        "@sapphire/framework": "^4.1.0",
-        "canvas": "^2.8.0",
+    "@sapphire/framework": "^4.1.0",
+    "canvas": "^2.8.0",
     "discord.js": "^14.7.1",
     "firebase": "^9.19.1",
     "firebase-admin": "^11.6.0",
-        "openai": "^4.20.0"
+    "googleapis": "^129.0.0",
+    "openai": "^4.20.0"
   },
   "devDependencies": {
     "@types/node": "^20.2.1",

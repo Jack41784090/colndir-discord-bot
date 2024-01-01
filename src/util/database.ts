@@ -39,13 +39,3 @@ export async function SaveData<T extends object>(collection: string, doc: string
 
     return data;
 }
-
-export async function getGoogleDoc(docID: string) {
-    const r = await fetch(`https://docs.google.com/feeds/download/documents/export/Export?exportFormat=txt&id=${docID}`)
-        .catch((e: Error) => {
-            console.log(e);
-            return e;
-        });
-    console.log(r);
-    return r;
-}

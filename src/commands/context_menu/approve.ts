@@ -1,9 +1,10 @@
 import { Command } from '@sapphire/framework';
-import { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, TextChannel, ThreadChannel } from 'discord.js';
+import { log } from 'console';
+import { ApplicationCommandType, ChannelType, EmbedBuilder, Message, MessageType, PermissionFlagsBits, TextBasedChannel, TextChannel, ThreadChannel } from 'discord.js';
 import { readFileSync } from 'fs';
 import OpenAI from 'openai';
-import { getGoogleDoc } from '../../util/database';
 import { cutDownLength, getErrorEmbed } from '../../util/functions';
+import { getGoogleDoc } from '../../util/googledocs';
 import { register } from '../../util/register';
 import { Character } from '../../util/typedef';
 import { RegisterCommand } from '../register';
@@ -33,7 +34,11 @@ export class ApproveContextMenu extends Command {
     public override async contextMenuRun(interaction: Command.ContextMenuCommandInteraction) {
         await interaction.deferReply();
 
-        if (!ApproveContextMenu.VALID_CHANNEL_NAMES.includes((interaction.channel as TextChannel).name)) {
+        if (
+            interaction.channel?.type == ChannelType.GuildText &&
+            !ApproveContextMenu.VALID_CHANNEL_NAMES.includes((interaction.channel as TextChannel).name) &&
+            !interaction.channel?.isThread()
+        ) {
             return interaction.followUp(`Approved messages are not in ${ApproveContextMenu.VALID_CHANNEL_NAMES.map(cn => `'${cn}'`).join(' or ')} channel`);
         }
 
@@ -46,8 +51,39 @@ export class ApproveContextMenu extends Command {
         const googleDocsRegex = /^https:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)\/edit/i;
         const match = origin_message.content.match(googleDocsRegex);
         const m2 = match ? match[1] : null;
+        const threads = interaction.guild?.channels.cache.filter(c => c.isThread());
+        const congregateStory = async (afterID: string, origin: Message<boolean>, channel: TextBasedChannel) => {
+            console.log("Fetch messages after origin")
+            const corress = await channel.messages.fetch({
+                after: afterID,
+            });
+            if (corress === undefined) return interaction.followUp({ content: "Error: cannot fetch messages afterwards" });
+            const related = Array.from(corress.values()).reverse();
+            related.unshift(origin);
+            for (const m of related) {
+                if (m.author.id === origin.author.id) {
+                    story.push(m.content);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        let x;
+        
+        // thread submission
+        if (origin_message.type == MessageType.ThreadCreated) {
+            log(origin_message.type)
+        }
+        // thread submission variant
+        else if (x = threads?.find(c => c.name === origin_message.content) as ThreadChannel) {
+            const tm = await x.messages.fetch();
+            const first_message = tm.last();
+            if (first_message === undefined) return await interaction.followUp({ embeds: [ getErrorEmbed('First message of thread is nonexistent.') ]});
+            await congregateStory(first_message.id, origin_message, x as unknown as TextChannel);
+        }
         // google doc submission
-        if (m2) {
+        else if (m2) {
             const response = await getGoogleDoc(m2);
             if (response instanceof Response) {
                 if (response.status === 200) {
@@ -61,30 +97,15 @@ export class ApproveContextMenu extends Command {
                 return await interaction.followUp(`Error: ${response?.toString()}\n\`\`\`${response}\`\`\``);
             }
         }
-        // not google doc, fetch messages after origin
+        // fetch messages after origin
         else {
-            console.log("Fetch messages after origin")
-            const corress = await interaction.channel?.messages.fetch({
-                after: origin_message.id,
-            });
-            if (corress === undefined) return interaction.followUp({ content: "Error: cannot fetch messages afterwards" });
-            const related = Array.from(corress.values()).reverse();
-            related.unshift(origin_message);
-            for (const m of related) {
-                if (m.author.id === origin_message.author.id) {
-                    story.push(m.content);
-                }
-                else {
-                    break;
-                }
-            }
+            await congregateStory(origin_message.id, origin_message, interaction.channel!);
         }
 
         // send request to gpt
         console.log("Request to GPT")
         const command = readFileSync('./src/data/chatgpt-command', 'utf8');
         const c = `${command}\n${story.join('\n')}`;
-        // const story_content = cutDownLength(c, ApproveCommand.GPT_LIMIT);
         const story_content = c;
         if (story_content === null) {
             return interaction.followUp({ embeds: [getErrorEmbed('Trouble cutting down story content before request to GPT.')] });
