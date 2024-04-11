@@ -1,0 +1,80 @@
+name: Push-to-Google-CE
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Google Compute Engine on master branch push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: NPM Install, Build and Tests
+        run: |
+          mkdir out
+          npm install
+          npm run build --if-present
+          npm run test --if-present
+          rsync -av --exclude 'out' ./ out
+          ls -la
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Compile TypeScript into JavaScript
+        run: |
+          cd out
+          tsc
+
+      - name: Authenticate with Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GOOGLE_FIREBASE_JSONKEY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.COLNDIR_HOST_IP }}
+          username: ${{ secrets.COLNDIR_HOST_USERNAME }}
+          key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+          port: 22
+          source: "out/*"
+          target: ${{ secrets.TARGET_DIR }}
+
+      - name: Run Commands on the Google Compute Engine
+        uses: appleboy/ssh-action@master
+        env:
+          TARGET_DIR: ${{ secrets.TARGET_DIR }}
+          TOKEN: ${{secrets.TOKEN}}
+          FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
+          FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
+          FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLEAPI_PRIVATE_KEY: ${{secrets.GOOGLEAPI_PRIVATE_KEY}}
+          GOOGLEAPI_CLIENT_EMAIL: ${{secrets.GOOGLEAPI_CLIENT_EMAIL}}
+        with:
+          host: ${{ secrets.COLNDIR_HOST_IP }}
+          username: ${{ secrets.COLNDIR_HOST_USERNAME }}
+          key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+          envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY,GOOGLEAPI_PRIVATE_KEY,GOOGLEAPI_CLIENT_EMAIL
+          script: |
+            echo $TOKEN > token.txt
+            cd $TARGET_DIR
+            cd out
+            forever stopall
+            forever start ./dist/index.js
+
