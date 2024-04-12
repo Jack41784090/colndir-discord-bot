@@ -10,8 +10,4 @@ const bot = new SapphireClient({
     ]
 });
 
-bot.once('ready', () => {
-    console.log(`Logged in as ${bot.user?.tag}!`);
-})
-
 export default bot;
