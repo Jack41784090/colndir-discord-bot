@@ -7,7 +7,7 @@ import { cutDownLength, getErrorEmbed } from '../../util/functions';
 import { getGoogleDoc } from '../../util/googledocs';
 import { register } from '../../util/register';
 import { Character } from '../../util/typedef';
-import { RegisterCommand } from '../register';
+import { RegisterCommand } from '../slash_command/register';
 
 export class ApproveContextMenu extends Command {
     static GPT_LIMIT = 4097;
