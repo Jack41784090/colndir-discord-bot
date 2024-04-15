@@ -25,6 +25,7 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
                 for (let i = 0; i < all.length; i++) {
                     const t = all[i]
                     console.log(`Checking thread ${t.name}`);
+                    if (t.archived) t.setArchived(false).catch(e => console.error(e));
                     const result = await findThumbnail(t);
                     if (result) {
                         console.log(`|=> ${result}`);
