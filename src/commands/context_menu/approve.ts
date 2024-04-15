@@ -4,7 +4,7 @@ import { ApplicationCommandType, ChannelType, EmbedBuilder, Message, MessageType
 import { readFileSync } from 'fs';
 import OpenAI from 'openai';
 import { cutDownLength, getErrorEmbed } from '../../util/functions';
-import { getGoogleDoc } from '../../util/googledocs';
+import { getGoogleDocContent } from '../../util/googledocs';
 import { register } from '../../util/register';
 import { Character } from '../../util/typedef';
 import { RegisterCommand } from '../slash_command/register';
@@ -84,7 +84,7 @@ export class ApproveContextMenu extends Command {
         }
         // google doc submission
         else if (m2) {
-            const response = await getGoogleDoc(m2);
+            const response = await getGoogleDocContent(m2);
             if (typeof response === 'string') {
                 story.push(response);
             }

@@ -41,6 +41,53 @@ function readTable(table: docs_v1.Schema$Table) {
 }
 
 export function getGoogleDoc(documentId: string) {
+	return new Promise((resolve) => {
+		docs.documents.get({ documentId: documentId },
+			(err, res) => {
+				if (err) {
+					console.error('Error:', err);
+					resolve(void 0);
+				}
+				resolve(res?.data)
+			}
+		);
+	})
+}
+
+export function getGoogleDocImage(documentId: string): Promise<void | string[]> {
+	console.log('Fetching Google Doc image links');
+	return new Promise((resolve) => {
+		docs.documents.get({ documentId: documentId },
+			(err, res) => {
+				if (err) {
+					console.error('|-> Error:', err);
+					resolve(void 0)
+				}
+
+				const positionedImgObj = res?.data.positionedObjects;
+				const inlineImgObj = res?.data.inlineObjects;
+				const all = []
+				if (positionedImgObj) {
+					const imgKeys = Object.keys(positionedImgObj);
+					const imgLinks = imgKeys.map(k=>positionedImgObj[k]?.positionedObjectProperties?.embeddedObject?.imageProperties);
+					all.push(...imgLinks);
+					console.log('|-> Found image links:', imgLinks);
+				}
+
+				if (inlineImgObj) {
+					const imgKeys = Object.keys(inlineImgObj);
+					const imgLinks = imgKeys.map(k=>inlineImgObj[k]?.inlineObjectProperties?.embeddedObject?.imageProperties);
+					console.log('|-> Found image links:', imgLinks);
+					all.push(...imgLinks);
+				}
+
+				resolve(all.map(i => i?.contentUri).filter(m => typeof m === 'string') as string[]);
+			}
+		);
+	});
+}
+
+export function getGoogleDocContent(documentId: string) {
 	const story: string[] = [];
 	return new Promise((resolve) => {
 		docs.documents.get({ documentId: documentId },
@@ -59,6 +106,8 @@ export function getGoogleDoc(documentId: string) {
 					if (structuralElement.table) {
 						story.push(...readTable(structuralElement.table))
 					}
+
+					// if ()
 				});
 
 				resolve(story.join(''));
