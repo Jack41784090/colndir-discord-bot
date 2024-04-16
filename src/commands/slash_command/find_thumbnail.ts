@@ -1,6 +1,6 @@
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { ChannelType, Colors, EmbedBuilder } from 'discord.js';
-import { findThumbnail } from '../../util/functions';
+import { updateCharacterPost } from '../../util/functions';
 
 export class ThumbnailCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -33,7 +33,7 @@ export class ThumbnailCommand extends Command {
         // Send an initial response to acknowledge the command
         await interaction.followUp({ embeds: [embed], ephemeral: true });
     
-        const updateCall = await findThumbnail(threadChannel);
+        const updateCall = await updateCharacterPost(threadChannel);
         if (typeof updateCall === 'string') {
             embed.setTitle(updateCall).setColor(Colors.Red);
         }

@@ -1,7 +1,8 @@
 import { Events, Listener } from '@sapphire/framework';
 import { ChannelType, ForumChannel, type Client } from 'discord.js';
 import bot from '../bot';
-import { findThumbnail } from '../util/functions';
+import { updateCharacterPost } from '../util/functions';
+import { HOUR } from '../util/typedef';
 
 export class ReadyListener extends Listener<typeof Events.ClientReady> {
     public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -88,7 +89,7 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
                     
 
                     if (t.archived) t.setArchived(false).catch(e => console.error(e));
-                    const result = await findThumbnail(t);
+                    const result = await updateCharacterPost(t);
                     if (result) {
                         console.log(`|=> ${result}`);
                     }
@@ -104,12 +105,12 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
         const { username, id } = client.user!;
         this.container.logger.info(`Successfully logged in as ${username} (${id})`);
         
-        // await this.loreChannelsUpdate();
+        this.thumbnailUpdate();
 
         // begin the lore channel auto-org system
-        const hour = 1000 * 60 * 60;
         setInterval(async () => {
             this.loreChannelsUpdate();
-        }, 12 * hour)
+            this.thumbnailUpdate();
+        }, 12 * HOUR)
     }
 }

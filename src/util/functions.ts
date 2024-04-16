@@ -1,7 +1,7 @@
 import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
 import bot from "../bot";
 import { getGoogleDocImage } from "./googledocs";
-import { DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX } from "./typedef";
+import { DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX, HOUR } from "./typedef";
 
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
@@ -79,14 +79,16 @@ export async function congregateStory (afterID: string, origin: Message<boolean>
     return story;
 }
 
-export async function findThumbnail(threadChannel: ThreadChannel) {
+export async function updateCharacterPost(threadChannel: ThreadChannel) {
+    console.log(`Updating character post in [${threadChannel.name}]`)
     const messages = await threadChannel.messages.fetch();
     const postMessage = messages.last();
     if (postMessage?.author.id !== bot.user?.id) {
         return "The latest message is not made by me.";
     }
 
-    const linkTitle = messages.find(msg => msg.embeds[0]?.title?.includes('https://'))?.embeds[0].title;
+    const embed = messages.find(msg => msg.embeds[0]?.title?.includes('https://'))?.embeds[0];
+    const linkTitle = embed?.title;
     const link = linkTitle?.match(/https:\/\/discord\.com\/channels\/\d+\/\d+\/\d+/i)?.[0];
     if (!link) {
         return "No link found in the title.";
@@ -110,9 +112,10 @@ export async function findThumbnail(threadChannel: ThreadChannel) {
 
     // Update the latest post with the image from the story
     if (postMessage) {
-        const googleMatch = story[0].content.match(GOOGLEDOCS_REGEX);
-        const discordCDNMatch = story[0].content.match(DISCORD_CDN_REGEX);
-        const discordMediaMatch2 = story[0].content.match(DISCORD_MEDIA_REGEX);
+        const content = story.join('\n');
+        const googleMatch = content.match(GOOGLEDOCS_REGEX);
+        const discordCdnMatch = content.match(DISCORD_CDN_REGEX);
+        const discordMediaMatch2 = content.match(DISCORD_MEDIA_REGEX);
         const images = story.flatMap(msg => Array.from(msg.attachments.values()));
         if (images.length > 0) { // text submission
             const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(images[0].url);
@@ -130,17 +133,31 @@ export async function findThumbnail(threadChannel: ThreadChannel) {
             const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(null);
             await postMessage.edit({ embeds: [imageEmbed], files: image_links.map(l => ({ attachment: l, name: 'image.png' }))});
         }
-        else if (discordCDNMatch) {
-            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordCDNMatch[0]);
+        else if (discordCdnMatch) {
+            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordCdnMatch[0]);
             await postMessage.edit({ embeds: [imageEmbed] });
         }
         else if (discordMediaMatch2) {
             const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordMediaMatch2[0]);
             await postMessage.edit({ embeds: [imageEmbed] });
         }
+        else {
+            return "Failed to find an image link.";
+        }
     }
     else {
         return "Failed to find the latest message.";
+    }
+
+    // Close the post if it is too old
+    const timestamp = embed?.timestamp;
+    const time = timestamp ? new Date(timestamp).getTime() : null;
+    if (time) {
+        const now = new Date().getTime();
+        if (now - time > 24 * HOUR * 30 * 6) {
+            console.log(`Post is ${(now - time) / (24 * HOUR)} days old, archiving...`)
+            await threadChannel.setArchived(true);
+        }
     }
 
     return null;

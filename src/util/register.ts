@@ -1,7 +1,7 @@
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, User } from 'discord.js';
 import { RegisterCommand } from '../commands/slash_command/register';
 import { GetData, SaveData } from './database';
-import { capitalize, empty_ud, findThumbnail, formalise } from './functions';
+import { capitalize, empty_ud, formalise, updateCharacterPost } from './functions';
 import { Character } from './typedef';
 
 async function ensureForum(guild: Guild): Promise<string | ForumChannel> {
@@ -174,7 +174,7 @@ export async function register(guild: Guild, concerning_user: User, character: C
             ]
         })
     }
-    const thumbnailSearchResult = await findThumbnail(thread);
+    const thumbnailSearchResult = await updateCharacterPost(thread);
     if (typeof thumbnailSearchResult === 'string') {
         console.log(thumbnailSearchResult);
     }
