@@ -174,7 +174,10 @@ export async function register(guild: Guild, concerning_user: User, character: C
             ]
         })
     }
-    await findThumbnail(thread);
+    const thumbnailSearchResult = await findThumbnail(thread);
+    if (typeof thumbnailSearchResult === 'string') {
+        console.log(thumbnailSearchResult);
+    }
 
     // 8. Save to Database
     console.log('Updating database');
