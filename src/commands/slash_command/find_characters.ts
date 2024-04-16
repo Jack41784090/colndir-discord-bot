@@ -25,7 +25,7 @@ export class FindCharactersCommand extends Command {
         );
     }
 
-    private async decryptGoogleSubmissions(documentId: string, message: Message, guild: Guild) {
+    private async registerGoogleSubmissions(documentId: string, message: Message, guild: Guild) {
         const doc = await getGoogleDocContent(documentId);
         if (typeof doc === 'string') {
             const gpt = await sendRequestToOpenAI(doc);
@@ -33,14 +33,14 @@ export class FindCharactersCommand extends Command {
                 return (`Failed to process ${message.author.username}'s Google submission.`);
             }
             const res = JSON.parse(gpt.choices[0].message.content!) as Character;
-            return await register(guild, message.author, res, message);
+            return await register(guild, message.author, res, message, false);
         }
         else {
             return (`Failed to fetch ${message.author.username}'s Google submission.`);
         }
     }
 
-    private async decryptTextSubmissions(s: [Snowflake, Snowflake, string], message: Message, guild: Guild) {
+    private async registerTextSubmissions(s: [Snowflake, Snowflake, string], message: Message, guild: Guild) {
         const id = s[0];
         const messageID = s[1];
         const content = s[2];
@@ -50,12 +50,9 @@ export class FindCharactersCommand extends Command {
             if (typeof chatGPT === 'string') {
                 return `ChatGPT failure. Failed to process ${user.username}'s submission.`
             }
-            const response = chatGPT.choices[0].message.content;
-            if (!response) {
-                return `Response failure. Failed to process ${user.username}'s submission.`
-            }
+            const response = chatGPT.choices[0].message.content!;
             const char = JSON.parse(response) as Character;
-            return await register(guild, user, char, message);
+            return await register(guild, user, char, message, false);
         }
         else {
             return `Failed to fetch user ${id} or message ${messageID}.`
@@ -96,7 +93,7 @@ export class FindCharactersCommand extends Command {
         const fails: string[] = [];
         // Deal with text submissions
         for (const s of characterSubmissions) {
-            const r = await this.decryptTextSubmissions(s, messages.find(m => m.id === s[1])!, interaction.guild);
+            const r = await this.registerTextSubmissions(s, messages.find(m => m.id === s[1])!, interaction.guild);
             if (typeof r === 'string') {
                 fails.push(r);
             }
@@ -107,7 +104,7 @@ export class FindCharactersCommand extends Command {
 
         // Deal with Google submissions
         for (const m of googleMessages) {
-            const r = await this.decryptGoogleSubmissions(m.content.match(GOOGLEDOCS_REGEX)![1], m, interaction.guild);
+            const r = await this.registerGoogleSubmissions(m.content.match(GOOGLEDOCS_REGEX)![1], m, interaction.guild);
             if (typeof r === 'string') {
                 fails.push(r);
             }

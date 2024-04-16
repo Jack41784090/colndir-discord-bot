@@ -1,4 +1,4 @@
-import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildEmoji, Message, User } from 'discord.js';
+import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, User } from 'discord.js';
 import { RegisterCommand } from '../commands/slash_command/register';
 import { GetData, SaveData } from './database';
 import { capitalize, empty_ud, findThumbnail, formalise } from './functions';
@@ -76,7 +76,7 @@ export async function updateOldTags(forum: ForumChannel) {
     }
 }
 
-export async function register(guild: Guild, concerning_user: User, character: Character, original_message?: Message) {
+export async function register(guild: Guild, concerning_user: User, character: Character, original_message?: Message, ping: boolean = true) {
     
     // 1. Check if character is already registered
     const uinfo = await GetData("User", concerning_user.id) || empty_ud();
@@ -95,7 +95,7 @@ export async function register(guild: Guild, concerning_user: User, character: C
     // const emoji_map = await ensureMemberSpecificEmoji(guild);
         
     // 4. Get Tag
-    const tag = await createUserTag(forum, concerning_user);
+    // const tag = await createUserTag(forum, concerning_user);
 
     // 5. Update older tags
 
@@ -150,14 +150,16 @@ export async function register(guild: Guild, concerning_user: User, character: C
 
     // 7. Create Post
     console.log('Creating thread');
+    const m: GuildForumThreadMessageCreateOptions = {
+        embeds: [embed]
+    };
+    if (ping) {
+        m['content'] = `<@${concerning_user.id}>`;
+    }
     const thread = await forum.threads.create({
         name: character['NAME'] || 'character',
         autoArchiveDuration: 1440,
-        message: {
-            content: `${concerning_user}`,
-            embeds: [embed]
-        },
-        appliedTags: [tag.id]
+        message: m
     });
     character['thread'] = thread.url;
     separated_embeds.forEach(e => thread.send({ embeds: [e] }));
