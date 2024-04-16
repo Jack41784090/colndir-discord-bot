@@ -1,6 +1,7 @@
 import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
 import bot from "../bot";
 import { getGoogleDocImage } from "./googledocs";
+import { DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX } from "./typedef";
 
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
@@ -109,14 +110,16 @@ export async function findThumbnail(threadChannel: ThreadChannel) {
 
     // Update the latest post with the image from the story
     if (postMessage) {
+        const googleMatch = story[0].content.match(GOOGLEDOCS_REGEX);
+        const discordCDNMatch = story[0].content.match(DISCORD_CDN_REGEX);
+        const discordMediaMatch2 = story[0].content.match(DISCORD_MEDIA_REGEX);
         const images = story.flatMap(msg => Array.from(msg.attachments.values()));
         if (images.length > 0) { // text submission
             const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(images[0].url);
             await postMessage.edit({ embeds: [imageEmbed] });
         }
-        else if (story[0].embeds[0] && story[0].embeds[0].thumbnail) { // likely a Google submission
-            const match = story[0].content.match(/^https:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)\/edit/i);
-            const m2 = match?.[1] || null;
+        else if (googleMatch) {
+            const m2 = googleMatch[1] || null;
             if (!m2) {
                 return "Failed to find a Google Doc link.";
             }
@@ -126,6 +129,14 @@ export async function findThumbnail(threadChannel: ThreadChannel) {
             }
             const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(null);
             await postMessage.edit({ embeds: [imageEmbed], files: image_links.map(l => ({ attachment: l, name: 'image.png' }))});
+        }
+        else if (discordCDNMatch) {
+            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordCDNMatch[0]);
+            await postMessage.edit({ embeds: [imageEmbed] });
+        }
+        else if (discordMediaMatch2) {
+            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordMediaMatch2[0]);
+            await postMessage.edit({ embeds: [imageEmbed] });
         }
     }
     else {
