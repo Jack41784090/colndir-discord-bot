@@ -1,26 +1,22 @@
 import { Command } from '@sapphire/framework';
 import { log } from 'console';
 import { ApplicationCommandType, ChannelType, EmbedBuilder, Message, MessageType, PermissionFlagsBits, TextBasedChannel, TextChannel, ThreadChannel } from 'discord.js';
-import { readFileSync } from 'fs';
-import OpenAI from 'openai';
 import { cutDownLength, getErrorEmbed } from '../../util/functions';
 import { getGoogleDocContent } from '../../util/googledocs';
+import { sendRequestToOpenAI } from '../../util/openai';
 import { register } from '../../util/register';
-import { Character } from '../../util/typedef';
+import { Character, GOOGLEDOCS_REGEX } from '../../util/typedef';
 import { RegisterCommand } from '../slash_command/register';
 
 export class ApproveContextMenu extends Command {
     static GPT_LIMIT = 4097;
     static VALID_CHANNEL_NAMES = ['pending-characters', 'accepted-characters']
-    openai: OpenAI;
-    // init_step: Promise<unknown>[];
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
             description: 'Approve a character from #pending-characters.',
             requiredUserPermissions: [PermissionFlagsBits.Administrator]
         });
-        this.openai = new OpenAI()
     }
 
     public override registerApplicationCommands(registry: Command.Registry) {
@@ -48,8 +44,7 @@ export class ApproveContextMenu extends Command {
         if (origin_message === undefined) return interaction.followUp({ content: 'Error: content not found.' });
 
         const story: string[] = [];
-        const googleDocsRegex = /^https:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)\/edit/i;
-        const match = origin_message.content.match(googleDocsRegex);
+        const match = origin_message.content.match(GOOGLEDOCS_REGEX);
         const m2 = match ? match[1] : null;
         const threads = interaction.guild?.channels.cache.filter(c => c.isThread());
         const congregateStory = async (afterID: string, origin: Message<boolean>, channel: TextBasedChannel) => {
@@ -98,21 +93,10 @@ export class ApproveContextMenu extends Command {
         }
 
         // send request to gpt
-        console.log("Request to GPT")
-        const command = readFileSync('./src/data/chatgpt-command', 'utf8');
-        const c = `${command}\n${story.join('\n')}`;
-        const story_content = c;
-        if (story_content === null) {
-            return interaction.followUp({ embeds: [getErrorEmbed('Trouble cutting down story content before request to GPT.')] });
+        const comp = await sendRequestToOpenAI(story.join('\n'));
+        if (typeof comp === 'string') {
+            return interaction.followUp({ content: comp });
         }
-        console.log(story_content);
-        const comp = await this.openai.chat.completions.create({
-            messages: [{
-                role: "user",
-                content: story_content,
-            }],
-            model: "gpt-3.5-turbo-16k"
-        });
 
         // deal with response
         const response = comp.choices[0].message.content;

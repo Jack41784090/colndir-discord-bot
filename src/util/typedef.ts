@@ -17,3 +17,6 @@ export type Character = {
     APPEARANCE?: string;
     thread: string;
 }
+
+export const GOOGLEDOCS_REGEX = /^https:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)\/edit/i;
+

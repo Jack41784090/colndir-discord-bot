@@ -87,14 +87,14 @@ export function getGoogleDocImage(documentId: string): Promise<void | string[]> 
 	});
 }
 
-export function getGoogleDocContent(documentId: string) {
+export function getGoogleDocContent(documentId: string): Promise<Error | null | string>{
 	const story: string[] = [];
 	return new Promise((resolve) => {
 		docs.documents.get({ documentId: documentId },
 			(err, res) => {
 				if (err) {
 					console.error('Error:', err);
-					return;
+					resolve(err)
 				}
 	
 				const content = res?.data.body?.content;
@@ -106,8 +106,6 @@ export function getGoogleDocContent(documentId: string) {
 					if (structuralElement.table) {
 						story.push(...readTable(structuralElement.table))
 					}
-
-					// if ()
 				});
 
 				resolve(story.join(''));
