@@ -63,7 +63,7 @@ export class FindCharactersCommand extends Command {
     }
 
     public async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-        await interaction.deferReply({ ephemeral: true }); // async command. Requires a defer in reply in case async takes too long.
+        await interaction.deferReply({ ephemeral: false }); // async command. Requires a defer in reply in case async takes too long.
 
         if (interaction.channel?.type !== ChannelType.GuildText) {
             return interaction.editReply('This command must be run in a public thread.');
@@ -131,7 +131,7 @@ export class FindCharactersCommand extends Command {
             .setFooter({ text: `Finding all character submissions in [${submissionChannel.name}]...` });
 
         // Send an initial response to acknowledge the command
-        await interaction.followUp({ embeds: [embed], ephemeral: true });
+        await interaction.followUp({ embeds: [embed] });
 
         // const updateCall = await findThumbnail(submissionChannel);
         // if (typeof updateCall === 'string') {
