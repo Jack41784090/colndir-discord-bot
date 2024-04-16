@@ -27,7 +27,7 @@ export async function SaveData<T extends object>(collection: string, doc: string
     const document = database.collection(collection).doc(doc);
     const snapshotData = await document.get();
 
-    console.log(`Saving Data [${collection}] => [${doc}]`, data);
+    console.log(`Saving Data [${collection}] => [${doc}]`);
     if (snapshotData.exists) {
         console.log(`||=> Exists`);
         await document.update(data);
