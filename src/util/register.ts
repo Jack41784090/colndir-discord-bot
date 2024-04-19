@@ -193,6 +193,10 @@ export async function updateCharacterPost(threadChannel: ThreadChannel) {
     console.log(`Updating character post in [${threadChannel.name}]`)
     const messages = await threadChannel.messages.fetch();
     const postMessage = messages.last();
+    if (threadChannel.archived) {
+        await threadChannel.setArchived(false).catch(e => console.error(e));
+    }
+
     if (!postMessage) {
         return "Post not found."
     }
@@ -232,7 +236,7 @@ export async function updateCharacterPost(threadChannel: ThreadChannel) {
     const images = story.flatMap(msg => Array.from(msg.attachments.values()));
     if (images.length > 0) { // text submission
         const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(images[0].url);
-        await postMessage.edit({ embeds: [imageEmbed] });
+        await postMessage.edit({ embeds: [imageEmbed] }).catch(e => console.error(e));
     }
     else if (googleMatch) {
         const m2 = googleMatch[1] || null;
@@ -244,15 +248,15 @@ export async function updateCharacterPost(threadChannel: ThreadChannel) {
             return "Failed to fetch images from the Google Doc.";
         }
         const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(null);
-        await postMessage.edit({ embeds: [imageEmbed], files: image_links.map(l => ({ attachment: l, name: 'image.png' }))});
+        await postMessage.edit({ embeds: [imageEmbed], files: image_links.map(l => ({ attachment: l, name: 'image.png' }))}).catch(e => console.error(e));
     }
     else if (discordCdnMatch) {
         const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordCdnMatch[0]);
-        await postMessage.edit({ embeds: [imageEmbed] });
+        await postMessage.edit({ embeds: [imageEmbed] }).catch(e => console.error(e));
     }
     else if (discordMediaMatch2) {
         const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordMediaMatch2[0]);
-        await postMessage.edit({ embeds: [imageEmbed] });
+        await postMessage.edit({ embeds: [imageEmbed] }).catch(e => console.error(e));
     }
     else {
         return "Failed to find an image link.";
