@@ -7,3 +7,4 @@ firebase.json
 googleapi.json
 # Ignore generated credentials from google-github-actions/auth
 gha-creds-*.json
+src/commands/slash_command/find_characters.ts

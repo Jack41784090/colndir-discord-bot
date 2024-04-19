@@ -1,7 +1,5 @@
-import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
-import bot from "../bot";
-import { getGoogleDocImage } from "./googledocs";
-import { DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX, HOUR } from "./typedef";
+import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
+import { UserData } from "./typedef";
 
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
@@ -10,7 +8,7 @@ export function formalise(string: string): string {
     return string.split(/[\s_-]+/).map(s => capitalize(s.toLowerCase())).join(" ");
 }
 
-export function empty_ud(): Record<string, any> {
+export function empty_ud(): UserData {
     return {
         characters: [],
     };
@@ -23,7 +21,7 @@ export function NewObject<T extends object, T2 extends object>
     return Object.assign({...origin}, mod);
 }
 
-export function character(length: number): string {
+export function getCharArray(length: number): string {
     let result = '';
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     for (let i = 0; i < length; i++) {
@@ -59,7 +57,14 @@ export function getGreenflagEmbed(message: string, options?: Partial<EmbedData>)
     return new EmbedBuilder(Object.assign(b, options))
 }
 
-export async function congregateStory (afterID: string, origin: Message<boolean>, channel: TextBasedChannel) {
+/**
+ * "Consecutive messages" defined as: fetching from "after: afterID", every message that has the same author, limited to 50.
+ * @param afterID 
+ * @param origin 
+ * @param channel 
+ * @returns 
+ */
+export async function getConsecutiveMessages(afterID: string, origin: Message<boolean>, channel: TextBasedChannel) {
     console.log("Fetch messages after origin")
     const corress = await channel.messages.fetch({
         after: afterID,
@@ -79,91 +84,7 @@ export async function congregateStory (afterID: string, origin: Message<boolean>
     return story;
 }
 
-export async function updateCharacterPost(threadChannel: ThreadChannel) {
-    console.log(`Updating character post in [${threadChannel.name}]`)
-    const messages = await threadChannel.messages.fetch();
-    const postMessage = messages.last();
-    if (postMessage?.author.id !== bot.user?.id) {
-        return "The latest message is not made by me.";
-    }
-
-    const embed = messages.find(msg => msg.embeds[0]?.title?.includes('https://'))?.embeds[0];
-    const linkTitle = embed?.title;
-    const link = linkTitle?.match(/https:\/\/discord\.com\/channels\/\d+\/\d+\/\d+/i)?.[0];
-    if (!link) {
-        return "No link found in the title.";
-    }
-
-    // Extract IDs from the found link
-    const [, , , , , linkedChannelId, linkedMessageId] = link.split('/');
-
-    // Fetch the origin message using the extracted IDs
-    const originChannel = await bot.channels.fetch(linkedChannelId) as TextChannel;
-    const originMessage = originChannel?.isTextBased() ? await originChannel.messages.fetch(linkedMessageId) : null;
-    if (!originMessage) {
-        return "Failed to fetch the origin message.";
-    }
-
-    // Process the story from the origin message
-    const story = await congregateStory(linkedMessageId, originMessage, originChannel);
-    if (!story) {
-        return "Failed to fetch the story.";
-    }
-
-    // Update the latest post with the image from the story
-    if (postMessage) {
-        const content = story.join('\n');
-        const googleMatch = content.match(GOOGLEDOCS_REGEX);
-        const discordCdnMatch = content.match(DISCORD_CDN_REGEX);
-        const discordMediaMatch2 = content.match(DISCORD_MEDIA_REGEX);
-        const images = story.flatMap(msg => Array.from(msg.attachments.values()));
-        if (images.length > 0) { // text submission
-            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(images[0].url);
-            await postMessage.edit({ embeds: [imageEmbed] });
-        }
-        else if (googleMatch) {
-            const m2 = googleMatch[1] || null;
-            if (!m2) {
-                return "Failed to find a Google Doc link.";
-            }
-            const image_links = await getGoogleDocImage(m2!);
-            if (!image_links) {
-                return "Failed to fetch images from the Google Doc.";
-            }
-            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(null);
-            await postMessage.edit({ embeds: [imageEmbed], files: image_links.map(l => ({ attachment: l, name: 'image.png' }))});
-        }
-        else if (discordCdnMatch) {
-            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordCdnMatch[0]);
-            await postMessage.edit({ embeds: [imageEmbed] });
-        }
-        else if (discordMediaMatch2) {
-            const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordMediaMatch2[0]);
-            await postMessage.edit({ embeds: [imageEmbed] });
-        }
-        else {
-            return "Failed to find an image link.";
-        }
-    }
-    else {
-        return "Failed to find the latest message.";
-    }
-
-    // Close the post if it is too old
-    const timestamp = embed?.timestamp;
-    const time = timestamp ? new Date(timestamp).getTime() : null;
-    if (time) {
-        const now = new Date().getTime();
-        if (now - time > 24 * HOUR * 30 * 6) {
-            console.log(`Post is ${(now - time) / (24 * HOUR)} days old, archiving...`)
-            await threadChannel.setArchived(true);
-        }
-    }
-
-    return null;
-}
-
-export async function fetchAllMessages(submissionChannel: TextBasedChannel) {
+export async function getAllMessages(submissionChannel: TextBasedChannel) {
     const fetch100 = async (before?: string) => {
         const messages = await submissionChannel.messages.fetch({
             before: before || undefined,

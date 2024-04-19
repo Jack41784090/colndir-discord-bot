@@ -17,6 +17,9 @@ export type Character = {
     APPEARANCE?: string;
     thread: string;
 }
+export type UserData = {
+    characters: Character[]
+}
 
 export const HOUR = 1000 * 60 * 60;
 export const GOOGLEDOCS_REGEX = /^https:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)\/edit/i;

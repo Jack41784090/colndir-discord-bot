@@ -1,8 +1,10 @@
-import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, User } from 'discord.js';
+import { CategoryChannel, ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, TextChannel, ThreadChannel, User } from 'discord.js';
+import bot from '../bot';
 import { RegisterCommand } from '../commands/slash_command/register';
 import { GetData, SaveData } from './database';
-import { capitalize, empty_ud, formalise, updateCharacterPost } from './functions';
-import { Character } from './typedef';
+import { capitalize, empty_ud, formalise, getConsecutiveMessages } from './functions';
+import { getGoogleDocImage } from './googledocs';
+import { Character, DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX, HOUR } from './typedef';
 
 async function ensureForum(guild: Guild): Promise<string | ForumChannel> {
     const channels = await guild.channels.fetch();
@@ -165,7 +167,7 @@ export async function register(guild: Guild, concerning_user: User, character: C
     separated_embeds.forEach(e => thread.send({ embeds: [e] }));
     if (original_message) {
         // original_message.sort((a,b) => a.createdTimestamp - b.createdTimestamp);
-        thread.send({
+        await thread.send({
             embeds: [
                 new EmbedBuilder({
                     title: `original message: ${original_message.url}`,
@@ -185,4 +187,87 @@ export async function register(guild: Guild, concerning_user: User, character: C
     await SaveData("User", concerning_user.id, uinfo);
 
     return thread;
+}
+
+export async function updateCharacterPost(threadChannel: ThreadChannel) {
+    console.log(`Updating character post in [${threadChannel.name}]`)
+    const messages = await threadChannel.messages.fetch();
+    const postMessage = messages.last();
+    if (!postMessage) {
+        return "Post not found."
+    }
+
+    if (postMessage?.author.id !== bot.user?.id) {
+        return "The latest message is not made by me.";
+    }
+
+    const embed = messages.find(msg => msg.embeds[0]?.title?.includes('https://'))?.embeds[0];
+    const linkTitle = embed?.title;
+    const link = linkTitle?.match(/https:\/\/discord\.com\/channels\/\d+\/\d+\/\d+/i)?.[0];
+    if (!link) {
+        return "No link found in the title.";
+    }
+
+    // Extract IDs from the found link
+    const [, , , , , linkedChannelId, linkedMessageId] = link.split('/');
+
+    // Fetch the origin message using the extracted IDs
+    const originChannel = await bot.channels.fetch(linkedChannelId) as TextChannel;
+    const originMessage = originChannel?.isTextBased() ? await originChannel.messages.fetch(linkedMessageId) : null;
+    if (!originMessage) {
+        return "Failed to fetch the origin message.";
+    }
+
+    // Process the story from the origin message
+    const story = await getConsecutiveMessages(linkedMessageId, originMessage, originChannel);
+    if (!story) {
+        return "Failed to fetch the story.";
+    }
+
+    // Update the latest post with the image from the story
+    const content = story.join('\n');
+    const googleMatch = content.match(GOOGLEDOCS_REGEX);
+    const discordCdnMatch = content.match(DISCORD_CDN_REGEX);
+    const discordMediaMatch2 = content.match(DISCORD_MEDIA_REGEX);
+    const images = story.flatMap(msg => Array.from(msg.attachments.values()));
+    if (images.length > 0) { // text submission
+        const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(images[0].url);
+        await postMessage.edit({ embeds: [imageEmbed] });
+    }
+    else if (googleMatch) {
+        const m2 = googleMatch[1] || null;
+        if (!m2) {
+            return "Failed to find a Google Doc link.";
+        }
+        const image_links = await getGoogleDocImage(m2!);
+        if (!image_links) {
+            return "Failed to fetch images from the Google Doc.";
+        }
+        const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(null);
+        await postMessage.edit({ embeds: [imageEmbed], files: image_links.map(l => ({ attachment: l, name: 'image.png' }))});
+    }
+    else if (discordCdnMatch) {
+        const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordCdnMatch[0]);
+        await postMessage.edit({ embeds: [imageEmbed] });
+    }
+    else if (discordMediaMatch2) {
+        const imageEmbed = new EmbedBuilder(postMessage.embeds[0] as EmbedData).setImage(discordMediaMatch2[0]);
+        await postMessage.edit({ embeds: [imageEmbed] });
+    }
+    else {
+        return "Failed to find an image link.";
+    }
+
+    // Close the post if it is too old
+    const timestamp = embed?.timestamp;
+    const time = timestamp ? new Date(timestamp).getTime() : null;
+    if (time) {
+        const now = new Date().getTime();
+        if (!threadChannel.archived && now - time > 24 * HOUR * 30 * 6) {
+            console.log(`Post is ${(now - time) / (24 * HOUR)} days old, archiving...`)
+            await threadChannel.setArchived(true);
+        }
+    }
+
+    return null;
 }

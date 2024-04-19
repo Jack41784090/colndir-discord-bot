@@ -1,7 +1,8 @@
 import { Events, Listener } from '@sapphire/framework';
 import { ChannelType, ForumChannel, type Client } from 'discord.js';
 import bot from '../bot';
-import { updateCharacterPost } from '../util/functions';
+
+import { updateCharacterPost } from '../util/register';
 import { HOUR } from '../util/typedef';
 
 export class ReadyListener extends Listener<typeof Events.ClientReady> {
@@ -88,14 +89,9 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
                     console.log(`Checking thread ${t.name}`);
                     
 
-                    if (t.archived) t.setArchived(false).catch(e => console.error(e));
-                    const result = await updateCharacterPost(t);
-                    if (result) {
-                        console.log(`|=> ${result}`);
-                    }
-                    else {
-                        console.log(`|=> done`);
-                    }
+                    t.setArchived(false)
+                        .then(t => updateCharacterPost)
+                        .catch(e => console.error(e));
                 }
             }
         })
@@ -104,8 +100,6 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
     public async run(client: Client) {
         const { username, id } = client.user!;
         this.container.logger.info(`Successfully logged in as ${username} (${id})`);
-        
-        this.thumbnailUpdate();
 
         // begin the lore channel auto-org system
         setInterval(async () => {
