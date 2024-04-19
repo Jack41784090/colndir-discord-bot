@@ -35,15 +35,28 @@ jobs:
           cd out
           tsc
 
-      - name: Copy files via SCP
-        uses: appleboy/scp-action@master
+      - name: move everything to Compute Engine
+        uses: easingthemes/ssh-deploy@main
         with:
-          host: ${{ secrets.COLNDIR_HOST_IP }}
-          username: ${{ secrets.COLNDIR_HOST_USERNAME }}
-          key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-          port: 22
-          source: "out/*"
-          target: ${{ secrets.TARGET_DIR }}
+          ARGS: "--delete -rlgoDzvc -i"
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.COLNDIR_HOST_IP }}
+          REMOTE_USER: ${{ secrets.COLNDIR_HOST_USERNAME }}
+          TARGET: ${{ secrets.TARGET_DIR }}
+          SOURCE: "out/*"
+
+      # - name: Copy files via SCP
+      #   uses: appleboy/scp-action@master
+      #   with:
+      #     ARGS: "--delete -rlgoDzvc -i"
+      #   with:
+      #     host: ${{ secrets.COLNDIR_HOST_IP }}
+      #     username: ${{ secrets.COLNDIR_HOST_USERNAME }}
+      #     key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+      #     port: 22
+      #     source: "out/*"
+      #     target: ${{ secrets.TARGET_DIR }}
 
       - name: Run Commands on the Google Compute Engine
         uses: appleboy/ssh-action@master
