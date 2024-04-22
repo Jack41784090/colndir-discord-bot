@@ -35,34 +35,30 @@ jobs:
           cd out
           tsc
 
-      - name: Ensure rsync is installed
-        run: |
-          sudo apt-get update
-          sudo apt-get install rsync
-
-
-      - name: move everything to Compute Engine
-        uses: easingthemes/ssh-deploy@main
-        with:
-          ARGS: "--delete -rlgoDzvc -i"
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ secrets.COLNDIR_HOST_IP }}
-          REMOTE_USER: ${{ secrets.COLNDIR_HOST_USERNAME }}
-          TARGET: ${{ secrets.TARGET_DIR }}
-          SOURCE: "out/*"
-
-      # - name: Copy files via SCP
-      #   uses: appleboy/scp-action@master
+      # - name: move everything to Compute Engine
+      #   uses: easingthemes/ssh-deploy@main
       #   with:
       #     ARGS: "--delete -rlgoDzvc -i"
-      #   with:
-      #     host: ${{ secrets.COLNDIR_HOST_IP }}
-      #     username: ${{ secrets.COLNDIR_HOST_USERNAME }}
-      #     key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-      #     port: 22
-      #     source: "out/*"
-      #     target: ${{ secrets.TARGET_DIR }}
+      #     SSH_PRIVATE_KEY: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+      #     REMOTE_HOST: ${{ secrets.COLNDIR_HOST_IP }}
+      #     REMOTE_USER: ${{ secrets.COLNDIR_HOST_USERNAME }}
+      #     TARGET: ${{ secrets.TARGET_DIR }}
+      #     SOURCE: "out/*"
+      #     SCRIPT_BEFORE: |
+      #       sudo apt-get update
+      #       sudo apt-get install rsync
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.COLNDIR_HOST_IP }}
+          username: ${{ secrets.COLNDIR_HOST_USERNAME }}
+          key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+          port: 22
+          source: "out/*"
+          target: ${{ secrets.TARGET_DIR }}
+          rm: true
+          overwrite: true
 
       - name: Run Commands on the Google Compute Engine
         uses: appleboy/ssh-action@master
