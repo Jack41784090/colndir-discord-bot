@@ -1,8 +1,8 @@
 import { CategoryChannel, ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, TextChannel, ThreadChannel, User } from 'discord.js';
 import bot from '../bot';
 import { RegisterCommand } from '../commands/slash_command/register';
-import { GetData, SaveData } from './database';
-import { capitalize, empty_ud, formalise, getConsecutiveMessages } from './functions';
+import { GetData, GetDefaultUserData, SaveData } from './database';
+import { capitalize, formalise, getConsecutiveMessages } from './functions';
 import { getGoogleDocImage } from './googledocs';
 import { Character, DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX, HOUR } from './typedef';
 
@@ -81,7 +81,7 @@ export async function updateOldTags(forum: ForumChannel) {
 export async function register(guild: Guild, concerning_user: User, character: Character, original_message?: Message, ping: boolean = true) {
     
     // 1. Check if character is already registered
-    const uinfo = await GetData("User", concerning_user.id) || empty_ud();
+    const uinfo = await GetData("User", concerning_user.id) || GetDefaultUserData();
     const chars: Character[] = uinfo['characters'];
     let c: Character | undefined;
     if (chars && (c = chars.find(c => c.NAME === character.NAME))) {

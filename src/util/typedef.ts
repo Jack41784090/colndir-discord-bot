@@ -18,6 +18,8 @@ export type Character = {
     thread: string;
 }
 export type UserData = {
+    id: string;
+    username: string;
     characters: Character[]
 }
 

@@ -1,17 +1,10 @@
 import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
-import { UserData } from "./typedef";
 
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 export function formalise(string: string): string {
     return string.split(/[\s_-]+/).map(s => capitalize(s.toLowerCase())).join(" ");
-}
-
-export function empty_ud(): UserData {
-    return {
-        characters: [],
-    };
 }
 
 export function NewObject<T extends object, T2 extends object>
@@ -104,4 +97,67 @@ export async function getAllMessages(submissionChannel: TextBasedChannel) {
     return messages;
 }
 
+export function getPromiseStatus(p: Promise<unknown>): Promise<'pending' | 'fulfilled' | 'rejected'> {
+    const t = {};
+    return Promise.race([p, t])
+        .then(v =>
+            (v === t)?
+                "pending":
+                "fulfilled",
+            () => "rejected"
+        );
+}
 
+export function roundToDecimalPlace(number: number, decimalPlace: number = 1) {
+    if (number === 0) return 0;
+
+    const decimal = Math.pow(10, decimalPlace);
+
+    if (decimalPlace === undefined) {
+        let value: number;
+        for (let i = 0; i < 25; i++) {
+            const newDecimal = Math.pow(10, decimalPlace + i);
+            value = Math.round((number + Number.EPSILON) * newDecimal) / newDecimal;
+            if (value !== 0) {
+                break;
+            }
+        }
+        return value!;
+    }
+    else {
+        return Math.round((number + Number.EPSILON) * decimal) / decimal;
+    }
+}
+
+export function uniformRandom(_1: number, _2: number, decimize = false): number {
+    const parametersIntegers = Number.isInteger(_1) && Number.isInteger(_2);
+    const random = Math.random(); // [0.0, 1.0]
+
+    const result = Math.min(_1, _2) + ((Math.abs(_1 - _2) + Number(parametersIntegers)) * random);
+
+    return parametersIntegers && !decimize?
+        Math.floor(result):
+        result;
+}
+export function average(...nums: Array<number>) {
+    let total = 0;
+    for (let i = 0; i < nums.length; i++) {
+        const n = nums[i];
+        total += n;
+    }
+    return total / (nums.length || 1);
+}
+export function gaussianRandom(_mean: number, _standardDeviation: number): number {
+    // Box Muller Transform
+    let u, v;
+    while (!u || !v) {
+        u = Math.random();
+        v = Math.random();
+    }
+    const x_N0_1 = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+
+    return _mean + _standardDeviation * x_N0_1;
+}
+export function clamp(value: number, min: number = Number.NEGATIVE_INFINITY, max: number = Number.POSITIVE_INFINITY) {
+    return Math.max(Math.min(value, max), min);
+}
