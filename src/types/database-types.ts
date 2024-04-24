@@ -1,3 +1,4 @@
+
 export type ColndirCharacter = {
     NAME: string;
     SEX: string;
@@ -21,4 +22,5 @@ export type UserData = {
     id: string;
     username: string;
     characters: ColndirCharacter[]
+    combatCharacters: string[]
 }

@@ -1,6 +1,5 @@
-import { Battle } from '@classes/Battle';
+import { addToTeamMessageBlock } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
-import { User } from 'discord.js';
 
 export class StartBattleCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -17,18 +16,6 @@ export class StartBattleCommand extends Command {
 
     public async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
         await interaction.deferReply();
-        
-        const battle = await Battle.Create({
-            channel: interaction.channel!,
-            users: [interaction.user],
-            teamMapping: {
-                'enemy': [interaction.user],
-                'player': [] as User[]
-            },
-            pvp: true
-        })
-        battle.startRound();
-
-        return interaction.deleteReply();
+        await interaction.followUp(await addToTeamMessageBlock([], [], []))
     }
 }

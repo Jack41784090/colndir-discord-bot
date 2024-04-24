@@ -1,12 +1,12 @@
-import { UserData } from "@ctypes";
+import bot from "@bot";
+import { Character, UserData } from "@ctypes";
+import { NewObject } from "@functions";
 import { Image } from "canvas";
 import { User } from "discord.js";
 import * as firebase_admin from "firebase-admin";
 import * as app from "firebase-admin/firestore";
 import * as fs from "fs";
 import path from "path";
-import { NewObject } from ".";
-import bot from "../bot";
 
 
 // firebase login
@@ -45,6 +45,14 @@ export async function GetUserData(id_author: string | User): Promise<UserData> {
     return data;
 }
 
+export async function GetCombatCharacter(id: string, authorise?: User) {
+    const character = await GetData('Combat Character', id) as Character | null;
+    if (character !== null && (character.authorised.includes("all") || character.authorised.includes(authorise?.id || ""))) {
+        return character;
+    }
+    return null;
+}
+
 export async function SaveData<T extends object>(collection: string, doc: string, data: T) {
     const document = database.collection(collection).doc(doc);
     const snapshotData = await document.get();
@@ -63,7 +71,7 @@ export async function SaveData<T extends object>(collection: string, doc: string
 }
 export async function SaveUserData(data: UserData) {
     const defaultUserData = GetDefaultUserData();
-    return await SaveData("User", data.id, NewObject(defaultUserData));
+    return await SaveData("User", data.id, NewObject(defaultUserData, data));
 }
 
 export async function CreateNewUser(author: User): Promise<UserData> {
@@ -78,7 +86,8 @@ export function GetDefaultUserData(_user?: User): UserData {
     return {
         id,
         username,
-        characters: []
+        characters: [],
+        combatCharacters: [],
     };
 }
 export function GetFileImage(_path: string): Promise<Image | null> {

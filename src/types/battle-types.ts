@@ -17,6 +17,8 @@ export interface EntityConstance {
     username?: string,
     iconURL?: string,
 
+    name: string,
+
     str: number,    // Strength: muscle density
     dex: number,    // Dexterity: precision, skill with physical items and tools
     spd: number,    // Speed: quickness

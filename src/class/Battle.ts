@@ -1,7 +1,6 @@
 import { Armour, BattleConfig, BattleField, Character, Entity, EntityConstance, Location, UserData, Weapon, WeaponMultiplier } from "@ctypes";
-import charactersJSON from '@data/characters.json';
-import { GetUserData, roundToDecimalPlace, uniformRandom } from "@functions";
-import { EmbedBuilder, Message, TextBasedChannel } from "discord.js";
+import { GetCombatCharacter, GetUserData, roundToDecimalPlace, uniformRandom } from "@functions";
+import { EmbedBuilder, Message, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
 import { Ability } from "./Ability";
 
@@ -36,10 +35,31 @@ export class Battle extends EventEmitter {
     // gamemode
     pvp: boolean;
 
+    private constructor(c: BattleConfig, party: UserData[]) {
+        super();
+        this.playerEntities = []
+        this.players = party;
+        this.pvp = c.pvp;
+        this.channel = c.channel;
+        this.on("procAbility", (ability: Ability) => {
+            console.log(`Ability: ${ability.name} executed`);
+        });
+    }
+
     static async Create(c: BattleConfig): Promise<Battle> {
         const party = c.users.map(u => GetUserData(u.id));
         const battle = new Battle(c, await Promise.all(party));
-        // await battle.init();
+        const fighters = await Promise.all(
+            battle.players.map(async p => {
+                const c = await GetCombatCharacter(p.combatCharacters[0])
+                if (c) {
+                    const cons = Battle.GetEntityConstance(c, p);
+                    return Battle.GetEntity(cons);
+                }
+                else return null;
+            })
+        ).then(c => c.filter(x => x !== null) as Entity[]);
+        battle.toBeSpawnedRecord.front = fighters;
         return battle;
     }
 
@@ -56,22 +76,6 @@ export class Battle extends EventEmitter {
         return Battle.LOGCO_STR_HP * Math.log(Battle.XCO_STR_HP * x + 1) + Battle.LOGCO_SIZ_HP * Math.log(Battle.XCO_SIZ_HP * z + 1);
     }
 
-    static GetEntityConstance(entity: Character): EntityConstance {
-        const { name, str, dex, spd, siz, int, spr, fai } = entity;
-        return {
-            username: name,
-            str: str,
-            dex: dex,
-            spd: spd,
-            siz: siz,
-            int: int,
-            spr: spr,
-            fai: fai,
-            maxHP: 10 + Battle.GetAdditionalHP(entity),
-            maxOrg: 5 + Battle.GetAdditionalOrgansation(entity),
-        }
-    }
-
     static GetEmptyArmour(): Armour {
         return {
             name: 'None',
@@ -86,6 +90,23 @@ export class Battle extends EventEmitter {
             type: 'physical',
             piercing: 0,
             multipliers: [],
+        }
+    }
+
+    static GetEntityConstance(entity: Character, player?: User | UserData): EntityConstance {
+        const { name, str, dex, spd, siz, int, spr, fai } = entity;
+        return {
+            username: player?.username ?? name,
+            name: name,
+            str: str,
+            dex: dex,
+            spd: spd,
+            siz: siz,
+            int: int,
+            spr: spr,
+            fai: fai,
+            maxHP: 10 + Battle.GetAdditionalHP(entity),
+            maxOrg: 5 + Battle.GetAdditionalOrgansation(entity),
         }
     }
 
@@ -206,21 +227,12 @@ export class Battle extends EventEmitter {
         return damage;
     }
 
-    private constructor(c: BattleConfig, party: UserData[]) {
-        super();
-        this.playerEntities = []
-        this.players = party;
-        this.pvp = c.pvp;
-        this.channel = c.channel;
-        this.toBeSpawnedRecord['front'] = party.map(p => Battle.GetEntity(Battle.GetEntityConstance(charactersJSON.Dummy)));
-
-        this.on("procAbility", (ability: Ability) => {
-            console.log(`Ability: ${ability.name} executed`);
-        });
-    }
-
     ensureBattlefieldFormation(formation: Location): Entity[] {
         return this.battlefield.get(formation) || this.battlefield.set(formation, []).get(formation)!;
+    }
+
+    queueSpawn(entity: Entity, loc: Location) {
+        this.toBeSpawnedRecord[loc].push(entity);
     }
 
     spawnUsers() {
@@ -246,22 +258,7 @@ export class Battle extends EventEmitter {
         }
         
         this.spawnUsers();
-        for (const p of this.playerEntities) {
-            // randomly assign attacking
-            const attacker = p;
-            const target = this.playerEntities[Math.floor(Math.random() * this.playerEntities.length)];
-            const ability = new Ability({
-                associatedBattle: this,
-                name: 'Attack',
-                targetting: 'enemy',
-                AOE: 1,
-                castLocation: ['front'],
-                targetLocation: ['front'],
-            });
-
-            const damage = Battle.CalculateDamage(attacker, target, ability);
-            console.log(`${attacker.name} attacks ${target.name} for ${damage} damage`);
-        }
+        
 
         this.emit('endRound');
     }

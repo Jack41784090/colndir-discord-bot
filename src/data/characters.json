@@ -1,5 +1,6 @@
 {
     "Warrior": {
+        "authorised": ["all"],
         "name": "Warrior",
         "str": 8,
         "dex": 5,
@@ -11,6 +12,7 @@
         "description": "Strong and tough, excels in melee combat and can withstand heavy attacks."
     },
     "Ogaefa": {
+        "authorised": ["843757875477741569"],
         "name": "Ogaefa",
         "str": 9,
         "dex": 4,
@@ -22,6 +24,7 @@
         "description": ""
     },
     "Azaera": {
+        "authorised": ["486383295542591498"],
         "name": "Azaera",
         "str": 5,
         "dex": 8,
@@ -33,6 +36,7 @@
         "description": ""
     },
     "Thief": {
+        "authorised": ["all"],
         "name": "Thief",
         "str": 3,
         "dex": 8,
@@ -44,6 +48,7 @@
         "description": "Agile and stealthy, skilled in stealth attacks, avoiding detection, and manipulating mechanisms."
     },
     "Wizard": {
+        "authorised": ["all"],
         "name": "Wizard",
         "str": 1,
         "dex": 3,
@@ -55,6 +60,7 @@
         "description": "Highly intelligent, uses magical spells for a variety of effects, both offensive and defensive."
     },
     "Priest": {
+        "authorised": ["all"],
         "name": "Priest",
         "str": 2,
         "dex": 3,
@@ -66,6 +72,7 @@
         "description": "Devout and spiritual, wields divine power to heal and protect, as well as to smite foes."
     },
     "Ranger": {
+        "authorised": ["all"],
         "name": "Ranger",
         "str": 5,
         "dex": 7,
@@ -77,6 +84,7 @@
         "description": "Versatile and resourceful, masters of ranged combat and survival skills."
     },
     "Monk": {
+        "authorised": ["all"],
         "name": "Monk",
         "str": 4,
         "dex": 6,
@@ -88,6 +96,7 @@
         "description": "Spiritual warriors, their body and mind are weapons; excels in speed and combat skills."
     },
     "Paladin": {
+        "authorised": ["all"],
         "name": "Paladin",
         "str": 7,
         "dex": 4,
@@ -99,6 +108,7 @@
         "description": "Holy warriors, blend of fighter and cleric, strong in combat and capable of healing and protection spells."
     },
     "Shaman": {
+        "authorised": ["all"],
         "name": "Shaman",
         "str": 3,
         "dex": 4,
@@ -110,6 +120,7 @@
         "description": "Connects with the spirits to cast spells, heal, and summon elemental powers."
     },
     "Necromancer": {
+        "authorised": ["all"],
         "name": "Necromancer",
         "str": 2,
         "dex": 3,
@@ -121,6 +132,7 @@
         "description": "Dark and mysterious, manipulates the dead and the undead through dark magic."
     },
     "Druid": {
+        "authorised": ["all"],
         "name": "Druid",
         "str": 3,
         "dex": 4,
@@ -132,6 +144,7 @@
         "description": "Protectors of nature, adept at calling natural forces and transforming into animals."
     },
     "Dummy": {
+        "authorised": ["all"],
         "name": "Dummy",
         "str": 1,
         "dex": 1,
