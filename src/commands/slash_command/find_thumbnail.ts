@@ -1,6 +1,6 @@
+import { updateCharacterPost } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { ChannelType, Colors, EmbedBuilder } from 'discord.js';
-import { updateCharacterPost } from '../../util/register';
 
 export class ThumbnailCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {

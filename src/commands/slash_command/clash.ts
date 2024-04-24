@@ -1,6 +1,6 @@
+import characterJsons from '@data/characters.json';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
-import characterJsons from '../../data/characters.json';
 
 export class ClashCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {

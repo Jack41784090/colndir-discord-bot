@@ -1,7 +1,7 @@
+import { ColndirCharacter } from '@ctypes';
+import { GetData } from '@functions';
 import { Command } from '@sapphire/framework';
 import { ActionRowBuilder, ApplicationCommandType, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
-import { GetData } from '../../util/database';
-import { Character } from '../../util/typedef';
 
 export class ClaimFaceContextMenu extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -25,7 +25,7 @@ export class ClaimFaceContextMenu extends Command {
             const uid = await GetData('User', interaction.user.id);
             if (uid == undefined) return interaction.editReply('You do not have characters.');
 
-            const chars: Character[] = uid['characters'];
+            const chars: ColndirCharacter[] = uid['characters'];
             return interaction.followUp({
                 components: [
                     new ActionRowBuilder<StringSelectMenuBuilder>()

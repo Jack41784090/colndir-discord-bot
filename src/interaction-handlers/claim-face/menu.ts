@@ -1,8 +1,9 @@
-import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
-import { EmbedBuilder, ForumChannel, StringSelectMenuInteraction, ThreadChannel } from 'discord.js';
-import bot from '../../bot';
-import { GetData } from '../../util/database';
-import { Character } from '../../util/typedef';
+import bot from "@bot";
+import { ColndirCharacter } from "@ctypes";
+import { GetData } from "@functions";
+import { InteractionHandler, InteractionHandlerTypes } from "@sapphire/framework";
+import { EmbedBuilder, ForumChannel, StringSelectMenuInteraction, ThreadChannel } from "discord.js";
+
 
 export class InventorySelectHandler extends InteractionHandler {
     public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
@@ -34,7 +35,7 @@ export class InventorySelectHandler extends InteractionHandler {
         const uid = await GetData('User', interaction.user.id);
         if (uid == undefined) return interaction.followUp('You do not have characters.');
         const chars = uid['characters'];
-        const char: Character = chars.find((char: Character) => char['NAME'] == selected);
+        const char: ColndirCharacter = chars.find((char: ColndirCharacter) => char['NAME'] == selected);
         if (char === undefined) return interaction.followUp("Cannot find requested character.")
 
         // check if the thread is still here
@@ -45,7 +46,7 @@ export class InventorySelectHandler extends InteractionHandler {
                 console.log(e);
                 return undefined;
             }) as ThreadChannel;
-        if (thread == undefined) return interaction.followUp('Character thread not found.');
+        if (thread == undefined) return interaction.followUp('ColndirCharacter thread not found.');
 
         // get all messages in the thread
         const messages = await thread.messages.fetch();

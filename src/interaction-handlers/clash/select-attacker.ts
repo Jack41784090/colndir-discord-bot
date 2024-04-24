@@ -1,6 +1,6 @@
+import weaponsJson from '@data/weapons.json';
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import { APIEmbed, ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction } from 'discord.js';
-import weaponsJson from '../../data/weapons.json';
 
 export class SelectCharacterSelectHandler extends InteractionHandler {
     public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {

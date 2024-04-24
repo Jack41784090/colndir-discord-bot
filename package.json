@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "node --watch-path=./dist dist/index.js",
+    "dev": "npx tsc-alias -p tsconfig.json && node --watch-path=./dist dist/index.js",
     "rimraf": "./node_modules/rimraf/bin.js",
     "clean": "rimraf dist/",
     "compile": "npm run clean && tsc -p ./"

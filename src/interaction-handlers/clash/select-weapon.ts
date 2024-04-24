@@ -1,9 +1,9 @@
+import { Battle } from '@classes/Battle';
+import characterJsons from '@data/characters.json';
+import weaponJsons from '@data/weapons.json';
+import { roundToDecimalPlace } from '@functions';
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import { Colors, EmbedBuilder, StringSelectMenuInteraction } from 'discord.js';
-import { Battle } from '../../class/Battle';
-import characterJsons from '../../data/characters.json';
-import weaponJsons from '../../data/weapons.json';
-import { roundToDecimalPlace } from '../../util/functions';
 
 export class SelectCharacterSelectHandler extends InteractionHandler {
     public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {

@@ -1,4 +1,4 @@
-export type Character = {
+export type ColndirCharacter = {
     NAME: string;
     SEX: string;
     RACE: string;
@@ -20,10 +20,5 @@ export type Character = {
 export type UserData = {
     id: string;
     username: string;
-    characters: Character[]
+    characters: ColndirCharacter[]
 }
-
-export const HOUR = 1000 * 60 * 60;
-export const GOOGLEDOCS_REGEX = /^https:\/\/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)\/edit/i;
-export const DISCORD_CDN_REGEX = /https:\/\/cdn\.discordapp\.com\/attachments\/\d+\/\d+\/\w+\.(?:jpg|png|gif)\?[\w=&-]+/i;
-export const DISCORD_MEDIA_REGEX = /https:\/\/media\.discordapp\.net\/attachments\/\d+\/\d+\/\w+\.(?:jpg|png|gif)\?[\w=&-]+/i;

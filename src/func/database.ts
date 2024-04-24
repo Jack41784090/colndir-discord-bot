@@ -1,12 +1,13 @@
-import { Image } from 'canvas';
-import { User } from 'discord.js';
-import * as firebase_admin from 'firebase-admin';
-import * as app from 'firebase-admin/firestore';
-import * as fs from 'fs';
-import path from 'path';
-import bot from '../bot';
-import { NewObject } from './functions';
-import { UserData } from './typedef';
+import { UserData } from "@ctypes";
+import { Image } from "canvas";
+import { User } from "discord.js";
+import * as firebase_admin from "firebase-admin";
+import * as app from "firebase-admin/firestore";
+import * as fs from "fs";
+import path from "path";
+import { NewObject } from ".";
+import bot from "../bot";
+
 
 // firebase login
 firebase_admin.initializeApp({
@@ -33,7 +34,7 @@ export async function GetUserData(id_author: string | User): Promise<UserData> {
         { user: id_author, id: id_author.id }:
         { user: await bot.users.fetch(id_author), id: id_author };
 
-    const fetched: FirebaseFirestore.DocumentData | null = await GetData('Users', id);
+    const fetched: FirebaseFirestore.DocumentData | null = await GetData('User', id);
     const defaultData: UserData = GetDefaultUserData(user);
     const data: UserData = NewObject(defaultData, fetched || {});
 
@@ -62,7 +63,7 @@ export async function SaveData<T extends object>(collection: string, doc: string
 }
 export async function SaveUserData(data: UserData) {
     const defaultUserData = GetDefaultUserData();
-    return await SaveData("Users", data.id, NewObject(defaultUserData));
+    return await SaveData("User", data.id, NewObject(defaultUserData));
 }
 
 export async function CreateNewUser(author: User): Promise<UserData> {

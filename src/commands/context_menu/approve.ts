@@ -1,12 +1,9 @@
+import { GOOGLEDOCS_REGEX, NORM_CHAR_LIMIT } from '@constants';
+import { ColndirCharacter } from '@ctypes';
+import { cutDownLength, getErrorEmbed, getGoogleDocContent, register, sendRequestToOpenAI } from '@functions';
 import { Command } from '@sapphire/framework';
 import { log } from 'console';
 import { ApplicationCommandType, ChannelType, EmbedBuilder, Message, MessageType, PermissionFlagsBits, TextBasedChannel, TextChannel, ThreadChannel } from 'discord.js';
-import { cutDownLength, getErrorEmbed } from '../../util/functions';
-import { getGoogleDocContent } from '../../util/googledocs';
-import { sendRequestToOpenAI } from '../../util/openai';
-import { register } from '../../util/register';
-import { Character, GOOGLEDOCS_REGEX } from '../../util/typedef';
-import { RegisterCommand } from '../slash_command/register';
 
 export class ApproveContextMenu extends Command {
     static GPT_LIMIT = 4097;
@@ -104,16 +101,16 @@ export class ApproveContextMenu extends Command {
         try {
             console.log(response);
             const json_obj = JSON.parse(response);
-            const r = await register(interaction.guild!, origin_message.author, json_obj as Character, origin_message);
+            const r = await register(interaction.guild!, origin_message.author, json_obj as ColndirCharacter, origin_message);
             if (r instanceof ThreadChannel) {
                 return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${r}`)] });
             }
             else {
-                return interaction.followUp({ content: cutDownLength(`${r}\ncontent:${response}`, RegisterCommand.NORM_CHAR_LIMIT) || 'Thread Creation Error. Contact Ike.' });
+                return interaction.followUp({ content: cutDownLength(`${r}\ncontent:${response}`, NORM_CHAR_LIMIT) || 'Thread Creation Error. Contact Ike.' });
             }
         }
         catch (e) {
-            return interaction.followUp({ content: cutDownLength(`${JSON.stringify(e)}\ncontent:${response}`, RegisterCommand.NORM_CHAR_LIMIT) || 'Bot encountered an error while parsing GPT response.' });
+            return interaction.followUp({ content: cutDownLength(`${JSON.stringify(e)}\ncontent:${response}`, NORM_CHAR_LIMIT) || 'Bot encountered an error while parsing GPT response.' });
         }
     }
 }

@@ -1,87 +1,21 @@
-import { User } from "discord.js";
-import charactersJSON from '../data/characters.json';
-import { GetUserData } from "../util/database";
-import { roundToDecimalPlace, uniformRandom } from "../util/functions";
-import { UserData } from "../util/typedef";
+import { Armour, BattleConfig, BattleField, Character, Entity, EntityConstance, Location, UserData, Weapon, WeaponMultiplier } from "@ctypes";
+import charactersJSON from '@data/characters.json';
+import { GetUserData, roundToDecimalPlace, uniformRandom } from "@functions";
+import { EmbedBuilder, Message, TextBasedChannel } from "discord.js";
+import { EventEmitter } from "events";
+import { Ability } from "./Ability";
 
-type BattleField = Map<Location, Entity[]>;
-type Location = 'front' | 'back' | 'front-support' | 'back-support'
-type BotType = 'naught' | 'approach_attack' | 'passive_supportive'
-type Targetting = 'null' | 'self' | 'ally' | 'enemy'
-type AOE = number | 'all'
-type Team = 'player' | 'enemy'
-type Character = typeof charactersJSON.Warrior
-type ClashResultFate = "Miss" | "Hit" | "CRIT"
-type WeaponType = 'physical' | 'magical' | 'spiritual' | 'divine'
-type EntityStats = 'str' | 'dex' | 'spd' | 'siz' | 'int' | 'spr' | 'fai'
-type Reality = 'bruteForce' | 'magicPower' | 'spiritPower' | 'faithPower' | 'weaponPrecision';
-
-type WeaponMultiplierAction = 'add' | 'multiply';
-type WeaponMultiplier = [EntityStats | Reality, WeaponMultiplierAction, WeaponMultiplier];
-
-
-interface Ability {
-    name: string,
-    cooldown: number,
-    desc: string | null,
-    targetting: Targetting,
-    AOE: AOE,
-}
-interface Weapon {
-    type: WeaponType,
-    name: string,
-    piercing: number,
-    baseDamage: number,
-    multipliers: WeaponMultiplier[],
-}
-interface Armour {
-    name: string,
-    armour: number,
-}
-interface EntityConstance {
-    owner?: string,
-    username?: string,
-    iconURL?: string,
-
-    str: number,    // Strength: muscle density
-    dex: number,    // Dexterity: precision, skill with physical items and tools
-    spd: number,    // Speed: quickness
-    siz: number,    // Size: body mass
-    int: number,    // Intelligence: knowledge of pragmatic magic
-    spr: number,    // Spirit: connection to the spiritual world
-    fai: number,    // Faith: faith in the divine
-
-    abilities: Ability[],
-    maxHP: number,
-    maxOrg: number,
-}
-interface Entity {
-    base: EntityConstance,
-    name: string,
-    HP: number,
-    org: number,
-    loc: Location,
-    equippedWeapon: Weapon,
-    equippedArmour: Armour,
-    id: {
-        botType: BotType,
-        isPlayer: boolean,
-        isPvp: boolean,
-    }
-}
-interface BattleConfig {
-    users: User[];
-    teamMapping: Record<Team, User>;
-    pvp: boolean;
-}
-
-export class Battle {
+export class Battle extends EventEmitter {
     static readonly LOGCO_ORG = 11.1;
     static readonly XCO_ORG = 0.23;
     static readonly LOGCO_STR_HP = 8.3;
     static readonly XCO_STR_HP = 0.6;
     static readonly LOGCO_SIZ_HP = 12;
     static readonly XCO_SIZ_HP = 0.7;
+
+    // Discord 
+    channel: TextBasedChannel;
+    battleUI: Message | null = null;
 
     // Party
     players: UserData[];
@@ -102,10 +36,11 @@ export class Battle {
     // gamemode
     pvp: boolean;
 
-    private constructor(c: BattleConfig, party: UserData[]) {
-        this.playerEntities = []
-        this.players = party;
-        this.pvp = c.pvp;
+    static async Create(c: BattleConfig): Promise<Battle> {
+        const party = c.users.map(u => GetUserData(u.id));
+        const battle = new Battle(c, await Promise.all(party));
+        // await battle.init();
+        return battle;
     }
 
     static GetAdditionalOrgansation(entity: Character): number {
@@ -132,19 +67,9 @@ export class Battle {
             int: int,
             spr: spr,
             fai: fai,
-            abilities: [],
             maxHP: 10 + Battle.GetAdditionalHP(entity),
             maxOrg: 5 + Battle.GetAdditionalOrgansation(entity),
         }
-    }
-
-    static async Create(c: BattleConfig): Promise<Battle> {
-        const party = c.users.map(u => {
-            return GetUserData(u.id);
-        });
-        const battle = new Battle(c, await Promise.all(party));
-        // await battle.init();
-        return battle;
     }
 
     static GetEmptyArmour(): Armour {
@@ -166,6 +91,8 @@ export class Battle {
 
     static GetEntity(entity: EntityConstance): Entity {
         return {
+            warSupport: 1,
+            stamina: 1,
             base: entity,
             name: entity.username || 'Name',
             HP: entity.maxHP,
@@ -265,7 +192,7 @@ export class Battle {
         return damage * jitter;
     }
     
-    static async Clash({
+    static Clash({
         attacker,
         defender,
         ability,
@@ -277,5 +204,65 @@ export class Battle {
         const defenderEntityInstance = Battle.GetEntity(defenderEntity);
         const damage = Battle.CalculateDamage(attackerEntityInstance, defenderEntityInstance, ability);
         return damage;
+    }
+
+    private constructor(c: BattleConfig, party: UserData[]) {
+        super();
+        this.playerEntities = []
+        this.players = party;
+        this.pvp = c.pvp;
+        this.channel = c.channel;
+        this.toBeSpawnedRecord['front'] = party.map(p => Battle.GetEntity(Battle.GetEntityConstance(charactersJSON.Dummy)));
+
+        this.on("procAbility", (ability: Ability) => {
+            console.log(`Ability: ${ability.name} executed`);
+        });
+    }
+
+    ensureBattlefieldFormation(formation: Location): Entity[] {
+        return this.battlefield.get(formation) || this.battlefield.set(formation, []).get(formation)!;
+    }
+
+    spawnUsers() {
+        console.log('Spawning Users');
+        for (const [loc, entities] of Object.entries(this.toBeSpawnedRecord)) {
+            console.log(`Spawning ${entities.length} entities at ${loc}`);
+            this.ensureBattlefieldFormation(loc as Location).push(...entities);
+            this.playerEntities.push(...entities);
+            this.toBeSpawnedRecord[loc as Location] = [];
+        }
+        console.log(this.playerEntities.map(e => `${e.name} / ${e.base.username} [${e.loc}]`));
+    }
+
+    async startRound() {
+        this.emit('startRound');
+        if (!this.battleUI) {
+            this.battleUI = await this.channel.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("Loading Battle...")
+                ]
+            });
+        }
+        
+        this.spawnUsers();
+        for (const p of this.playerEntities) {
+            // randomly assign attacking
+            const attacker = p;
+            const target = this.playerEntities[Math.floor(Math.random() * this.playerEntities.length)];
+            const ability = new Ability({
+                associatedBattle: this,
+                name: 'Attack',
+                targetting: 'enemy',
+                AOE: 1,
+                castLocation: ['front'],
+                targetLocation: ['front'],
+            });
+
+            const damage = Battle.CalculateDamage(attacker, target, ability);
+            console.log(`${attacker.name} attacks ${target.name} for ${damage} damage`);
+        }
+
+        this.emit('endRound');
     }
 }

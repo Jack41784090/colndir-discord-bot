@@ -1,7 +1,8 @@
+import { ColndirCharacter } from '@ctypes';
+import { GetData, SaveData } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { CategoryChannel, ChannelType, EmbedBuilder, ForumChannel } from 'discord.js';
-import { GetData, SaveData } from '../../util/database';
-import { Character } from '../../util/typedef';
+
 
 export class RefreshCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -24,7 +25,7 @@ export class RefreshCommand extends Command {
         const channels = await interaction.guild?.channels.fetch();
         if (channels === undefined) return interaction.followUp({ content: 'Error: Could not fetch channels.' });
         const category = channels.find(c => c?.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'character rp category') as CategoryChannel;
-        if (category === undefined) return interaction.followUp({ content: 'Error: Could not find "Character RP Category" category.' });
+        if (category === undefined) return interaction.followUp({ content: 'Error: Could not find "ColndirCharacter RP Category" category.' });
         const forum = channels.find(c => c?.type === ChannelType.GuildForum && c.name === 'character-list') as ForumChannel || await interaction.guild?.channels.create({
             parent: category,
             type: ChannelType.GuildForum,
@@ -62,18 +63,18 @@ export class RefreshCommand extends Command {
         const ud = await GetData('User', interaction.user.id);
         if (ud == null) return interaction.followUp({ content: 'You have no characters.' });
         const threads = await forum.threads.fetch();
-        const refreshed_characters = ud['characters'].filter((c: Character) => {
+        const refreshed_characters = ud['characters'].filter((c: ColndirCharacter) => {
             if (c['thread'] == undefined) return false;
             const thread_id = c['thread'].split('/').pop();
             return thread_id && threads.threads.has(thread_id);
         });
-        const removed_characters = ud['characters'].filter((c: Character) => !refreshed_characters.includes(c));
+        const removed_characters = ud['characters'].filter((c: ColndirCharacter) => !refreshed_characters.includes(c));
         if (removed_characters.length > 0) await SaveData('User', interaction.user.id, { characters: refreshed_characters });
 
         return interaction.followUp({ embeds: [
             new EmbedBuilder()
                 .setTitle('Refreshed character list')
-                .setDescription(`Removed ${removed_tags.length} tags (${removed_tags.map(t => t.name).join(', ') || 'none removed'}).\nRemoved ${removed_characters.length} characters (${removed_characters.map((c: Character) => c.NAME).join(', ') || 'none removed'}).`)
+                .setDescription(`Removed ${removed_tags.length} tags (${removed_tags.map(t => t.name).join(', ') || 'none removed'}).\nRemoved ${removed_characters.length} characters (${removed_characters.map((c: ColndirCharacter) => c.NAME).join(', ') || 'none removed'}).`)
         ] });
     }
 }

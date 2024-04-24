@@ -1,16 +1,14 @@
-import { CategoryChannel, ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, TextChannel, ThreadChannel, User } from 'discord.js';
-import bot from '../bot';
-import { RegisterCommand } from '../commands/slash_command/register';
-import { GetData, GetDefaultUserData, SaveData } from './database';
-import { capitalize, formalise, getConsecutiveMessages } from './functions';
-import { getGoogleDocImage } from './googledocs';
-import { Character, DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, GOOGLEDOCS_REGEX, HOUR } from './typedef';
+import bot from "@bot";
+import { DESCRIPTION_LIMIT, DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, FIELD_VALUE_LIMIT, GOOGLEDOCS_REGEX, HOUR } from "@constants";
+import { ColndirCharacter } from "@ctypes";
+import { GetData, GetDefaultUserData, SaveData, capitalize, formalise, getConsecutiveMessages, getGoogleDocImage } from "@functions";
+import { CategoryChannel, ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, TextChannel, ThreadChannel, User } from "discord.js";
 
 async function ensureForum(guild: Guild): Promise<string | ForumChannel> {
     const channels = await guild.channels.fetch();
     if (channels === undefined) return 'Error: Could not fetch channels.';
     const category = channels.find(c => c?.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'character rp category') as CategoryChannel;
-    if (category === undefined) return 'Error: Could not find "Character RP Category" category.';
+    if (category === undefined) return 'Error: Could not find "ColndirCharacter RP Category" category.';
     const forum = channels.find(c => c?.type === ChannelType.GuildForum && c.name === 'character-list') as ForumChannel || await guild.channels.create({
         parent: category,
         type: ChannelType.GuildForum,
@@ -78,14 +76,14 @@ export async function updateOldTags(forum: ForumChannel) {
     }
 }
 
-export async function register(guild: Guild, concerning_user: User, character: Character, original_message?: Message, ping: boolean = true) {
+export async function register(guild: Guild, concerning_user: User, character: ColndirCharacter, original_message?: Message, ping: boolean = true) {
     
     // 1. Check if character is already registered
     const uinfo = await GetData("User", concerning_user.id) || GetDefaultUserData();
-    const chars: Character[] = uinfo['characters'];
-    let c: Character | undefined;
+    const chars: ColndirCharacter[] = uinfo['characters'];
+    let c: ColndirCharacter | undefined;
     if (chars && (c = chars.find(c => c.NAME === character.NAME))) {
-        return 'Error: Character is already registered under: ' + c['thread'];
+        return 'Error: ColndirCharacter is already registered under: ' + c['thread'];
     }
 
     // 2. Get/create forum
@@ -106,9 +104,9 @@ export async function register(guild: Guild, concerning_user: User, character: C
     const separated_embeds: EmbedBuilder[] = [];
     const embed = new EmbedBuilder();
     for (const k of Object.keys(character)) {
-        const key = k as keyof Character;
+        const key = k as keyof ColndirCharacter;
         const value = character[key];
-        if (value && value.length <= RegisterCommand.FIELD_VALUE_LIMIT) {
+        if (value && value.length <= FIELD_VALUE_LIMIT) {
             switch (key) {
                 case 'NAME': {
                     embed.setTitle(value);
@@ -129,14 +127,14 @@ export async function register(guild: Guild, concerning_user: User, character: C
             }
         }
         else if (value) {
-            if (value.length <= RegisterCommand.DESCRIPTION_LIMIT) {
+            if (value.length <= DESCRIPTION_LIMIT) {
                 const newEmbed = new EmbedBuilder();
                 newEmbed.setTitle(formalise(key));
                 newEmbed.setDescription(`${capitalize(value)}\n`);
                 separated_embeds.push(newEmbed);
             }
             else {
-                const split = value.match(new RegExp(`.{1,${RegisterCommand.DESCRIPTION_LIMIT}}`, 'g'));
+                const split = value.match(new RegExp(`.{1,${DESCRIPTION_LIMIT}}`, 'g'));
                 if (split === null) continue;
                 split.forEach((s, i) => {
                     const newEmbed = new EmbedBuilder();

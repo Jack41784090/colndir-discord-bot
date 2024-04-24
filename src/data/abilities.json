@@ -1,0 +1,11 @@
+{
+    "ability": {
+        "trigger": "startRound",
+        "name": "startRound",
+        "desc": "Triggers at the start of a round.",
+        "targetting": "self",
+        "AOE": 1,
+        "castLocation": ["front"],
+        "targetLocation": ["front"]
+    }
+}

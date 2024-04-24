@@ -1,16 +1,11 @@
+import { ColndirCharacter } from '@ctypes';
+import json from '@data/register.json';
+import { register } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import json from '../../data/register.json';
-import { register } from '../../util/register';
-import { Character } from '../../util/typedef';
 
 // PING: Sends a "followUp" to the server and returning, calculating the difference in timestamp to get an estimate on ping.
 export class RegisterCommand extends Command {
-    static DESCRIPTION_LIMIT = 4096;
-    static FIELD_NAME_LIMIT = 256;
-    static FIELD_VALUE_LIMIT = 1024;
-    static NORM_CHAR_LIMIT = 2000;
-
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
@@ -59,7 +54,7 @@ export class RegisterCommand extends Command {
         }
         
         const concerning_user = interaction.options.getUser('user') || interaction.user;
-        const thread = await register(interaction.guild!, concerning_user, character as Character);
+        const thread = await register(interaction.guild!, concerning_user, character as ColndirCharacter);
 
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created @ ${thread}`)] });
     }
