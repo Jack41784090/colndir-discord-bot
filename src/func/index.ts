@@ -162,6 +162,7 @@ export function clamp(value: number, min: number = Number.NEGATIVE_INFINITY, max
     return Math.max(Math.min(value, max), min);
 }
 
+export * from './add-to-team';
 export * from './database';
 export * from './googledocs';
 export * from './openai';
