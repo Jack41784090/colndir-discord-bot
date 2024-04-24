@@ -8,7 +8,8 @@
     "dev": "npx tsc-alias -p tsconfig.json && node --watch-path=./dist dist/index.js",
     "rimraf": "./node_modules/rimraf/bin.js",
     "clean": "rimraf dist/",
-    "compile": "npm run clean && tsc -p ./"
+    "compile": "npm run clean && tsc -p ./",
+    "host": "forever stopall && npx tsc-alias -p tsconfig.json && forever start ./dist/index.js"
   },
   "dependencies": {
     "@sapphire/framework": "^5.1.0",

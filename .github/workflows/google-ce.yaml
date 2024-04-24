@@ -80,6 +80,5 @@ jobs:
             echo $TOKEN > token.txt
             cd $TARGET_DIR
             cd out
-            forever stopall
-            forever start ./dist/index.js
+            npm run host
 
