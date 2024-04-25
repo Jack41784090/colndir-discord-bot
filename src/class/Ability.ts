@@ -41,18 +41,8 @@ export class Ability extends EventEmitter {
     execute() {
         console.log(`Ability: ${this.name} executed via [${this.trigger}]`);
         this.associatedBattle.emit("procAbility", this);
+        switch (this.name) {
+            
+        }
     }
-}
-
-export class Slash extends Ability {
-    constructor(_option: Partial<AbilityConfig> & { associatedBattle: Battle }) {
-        super(_option);
-        this.name = 'Slash';
-        this.desc = 'Slash the enemy';
-        this.targetting = 'enemy';
-        this.AOE = 1;
-        this.castLocation = ['front'];
-        this.targetLocation = ['front'];
-    }
-
 }

@@ -15,6 +15,7 @@ export interface Armour {
 export interface EntityConstance {
     owner?: string,
     username?: string,
+    id?: string,
     iconURL?: string,
 
     name: string,

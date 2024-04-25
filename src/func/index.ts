@@ -163,6 +163,7 @@ export function clamp(value: number, min: number = Number.NEGATIVE_INFINITY, max
 }
 
 export * from './add-to-team';
+export * from './battle-func';
 export * from './database';
 export * from './googledocs';
 export * from './openai';
