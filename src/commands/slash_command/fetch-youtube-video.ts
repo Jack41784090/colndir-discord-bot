@@ -1,5 +1,6 @@
-import { getVideoInfo } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
+import { buffer } from 'stream/consumers';
+import ytdl from 'ytdl-core';
 
 
 export class FetchVideoCommand extends Command {
@@ -41,24 +42,27 @@ export class FetchVideoCommand extends Command {
     public async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
         await interaction.deferReply(); 
 
-        const videoId = interaction.options.getString('id')!;
+        const videoId = ytdl.getVideoID(interaction.options.getString('id')!);
         const videoName = interaction.options.getString('name') || 'Music';
         const videoFormat = interaction.options.getString('format') || '.mp3';
-        const videoInfo = await getVideoInfo(videoId);
+        const videoInfo = ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
+            filter: videoFormat === '.mp3' ? 'audioonly' : 'audioandvideo',
+            quality: 'highest',
+        })
 
         if (videoInfo === null || videoInfo instanceof Error) {
             if (videoInfo) console.error(videoInfo);
-            return interaction.editReply('Failed to fetch video ' + videoInfo?.message ?? '');
+            return interaction.editReply('Failed to fetch video\n' + videoInfo?.message ?? '');
         }
         else {
-            await interaction.channel?.send({
-                files: [ { attachment: videoInfo, name: videoName + videoFormat } ],
-            }).catch(e => {
-                console.error(e);
-                return interaction.editReply('Failed to send video ' + e.message);
+            return await interaction.channel?.send({
+                files: [ { attachment: await buffer(videoInfo), name: videoName + videoFormat } ],
             })
+                .then(() => interaction.deleteReply())
+                .catch(e => {
+                    console.error(e);
+                    interaction.editReply('Failed to send video\n' + e.message);
+                })
         }
-
-        return interaction.deleteReply();
     }
 }
