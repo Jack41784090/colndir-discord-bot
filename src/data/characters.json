@@ -1,15 +1,19 @@
 {
-    "Warrior": {
+    "Dummy": {
         "authorised": ["all"],
-        "name": "Warrior",
-        "str": 8,
-        "dex": 5,
-        "spd": 4,
-        "siz": 7,
-        "int": 3,
-        "spr": 2,
+        "name": "Dummy",
+        "str": 1,
+        "dex": 1,
+        "spd": 1,
+        "siz": 1,
+        "int": 1,
+        "spr": 1,
         "fai": 1,
-        "description": "Strong and tough, excels in melee combat and can withstand heavy attacks."
+        "cha": 1,
+        "beu": 1,
+        "wil": 1,
+        "end": 1,
+        "description": ""
     },
     "Ogaefa": {
         "authorised": ["843757875477741569"],
@@ -34,125 +38,5 @@
         "spr": 2,
         "fai": 4,
         "description": ""
-    },
-    "Thief": {
-        "authorised": ["all"],
-        "name": "Thief",
-        "str": 3,
-        "dex": 8,
-        "spd": 7,
-        "siz": 3,
-        "int": 4,
-        "spr": 2,
-        "fai": 1,
-        "description": "Agile and stealthy, skilled in stealth attacks, avoiding detection, and manipulating mechanisms."
-    },
-    "Wizard": {
-        "authorised": ["all"],
-        "name": "Wizard",
-        "str": 1,
-        "dex": 3,
-        "spd": 3,
-        "siz": 2,
-        "int": 9,
-        "spr": 5,
-        "fai": 2,
-        "description": "Highly intelligent, uses magical spells for a variety of effects, both offensive and defensive."
-    },
-    "Priest": {
-        "authorised": ["all"],
-        "name": "Priest",
-        "str": 2,
-        "dex": 3,
-        "spd": 3,
-        "siz": 4,
-        "int": 5,
-        "spr": 7,
-        "fai": 9,
-        "description": "Devout and spiritual, wields divine power to heal and protect, as well as to smite foes."
-    },
-    "Ranger": {
-        "authorised": ["all"],
-        "name": "Ranger",
-        "str": 5,
-        "dex": 7,
-        "spd": 6,
-        "siz": 5,
-        "int": 4,
-        "spr": 3,
-        "fai": 2,
-        "description": "Versatile and resourceful, masters of ranged combat and survival skills."
-    },
-    "Monk": {
-        "authorised": ["all"],
-        "name": "Monk",
-        "str": 4,
-        "dex": 6,
-        "spd": 7,
-        "siz": 4,
-        "int": 4,
-        "spr": 8,
-        "fai": 3,
-        "description": "Spiritual warriors, their body and mind are weapons; excels in speed and combat skills."
-    },
-    "Paladin": {
-        "authorised": ["all"],
-        "name": "Paladin",
-        "str": 7,
-        "dex": 4,
-        "spd": 3,
-        "siz": 6,
-        "int": 4,
-        "spr": 5,
-        "fai": 8,
-        "description": "Holy warriors, blend of fighter and cleric, strong in combat and capable of healing and protection spells."
-    },
-    "Shaman": {
-        "authorised": ["all"],
-        "name": "Shaman",
-        "str": 3,
-        "dex": 4,
-        "spd": 3,
-        "siz": 4,
-        "int": 6,
-        "spr": 9,
-        "fai": 5,
-        "description": "Connects with the spirits to cast spells, heal, and summon elemental powers."
-    },
-    "Necromancer": {
-        "authorised": ["all"],
-        "name": "Necromancer",
-        "str": 2,
-        "dex": 3,
-        "spd": 3,
-        "siz": 3,
-        "int": 8,
-        "spr": 7,
-        "fai": 1,
-        "description": "Dark and mysterious, manipulates the dead and the undead through dark magic."
-    },
-    "Druid": {
-        "authorised": ["all"],
-        "name": "Druid",
-        "str": 3,
-        "dex": 4,
-        "spd": 4,
-        "siz": 4,
-        "int": 7,
-        "spr": 8,
-        "fai": 4,
-        "description": "Protectors of nature, adept at calling natural forces and transforming into animals."
-    },
-    "Dummy": {
-        "authorised": ["all"],
-        "name": "Dummy",
-        "str": 1,
-        "dex": 1,
-        "spd": 1,
-        "siz": 1,
-        "int": 1,
-        "spr": 1,
-        "fai": 1,
-        "description": "Dummy class for testing purposes."
     }
 }

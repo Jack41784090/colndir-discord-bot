@@ -1,15 +1,18 @@
 import { Battle } from '@classes/Battle';
-import abilitiesJSON from '@data/abilities.json';
-import { Location } from './battle-types';
+import { EntityStats, Location, WeaponMultiplier, WeaponMultiplierAction } from './battle-types';
 
-export type AbilityDamageType = 'slashing' | 'piercing' | 'bludgeoning' | 'spiritual'
-export type AbilityTrigger = 'startRound' | 'endRound'
+export type AbilityMultiplier = [EntityStats, WeaponMultiplierAction, WeaponMultiplier];
+export enum AbilityTrigger {
+    Always = 'always',
+    StartRound = 'startRound',
+    EndRound = 'endRound',
+    OnHit = 'onHit',
+    OnUse = 'onUse',
+    Proc = 'proc',
+}
 export type Targetting = 'self' | 'ally' | 'enemy'
 export type AOE = number | 'all'
-export type AbilityData = typeof abilitiesJSON.ability;
-
-export interface AbilityConfig {
-    associatedBattle: Battle;
+export interface AbilityData {
     trigger: AbilityTrigger;
     name: string;
     desc: string | null;
@@ -17,4 +20,21 @@ export interface AbilityConfig {
     AOE: AOE;
     castLocation: Location[];
     targetLocation: Location[];
+};
+export enum AbilityName {
+    None = 'null',
+    Stab = 'phy-stab',
+    Slash = 'phy-slash',
 }
+
+export interface Ability {
+    associatedBattle?: Battle;
+    trigger: AbilityTrigger;
+    name: AbilityName;
+    desc: string | null;
+    targetting: Targetting;
+    AOE: AOE;
+    castLocation: Location[];
+    targetLocation: Location[];
+}
+export type AbilityNames = keyof AbilityData;

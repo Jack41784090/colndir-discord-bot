@@ -1,19 +1,80 @@
 import bot from "@bot";
-import { Ability } from "@classes/Ability";
-import { Armour, BattleConfig, BattleField, Character, Entity, EntityConstance, Location, Team, UserData, Weapon, WeaponMultiplier } from "@ctypes";
-import abilitiesJSON from "@data/abilities.json";
-import { GetCombatCharacter, GetUserData, NewObject, capitalize, getErrorEmbed, roundToDecimalPlace, setUpInteractionCollect, uniformRandom } from "@functions";
+import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BotType, Entity, EntityConstance, EntityStatus, EntityStatusType, Location, Team, UserData, Weapon } from "@ctypes";
+import characterJSON from "@data/characters.json";
+import { GetCombatCharacter, GetEmptyArmour, GetEmptyWeapon, GetEntity, GetEntityConstance, GetUserData, NewObject, capitalize, getErrorEmbed, isSubset, setUpInteractionCollect } from "@functions";
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, EmbedBuilder, InteractionCollector, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
+import { AbilityInstance } from "./Ability";
+
+export class EntityInstance implements Entity {
+    readonly base: Readonly<EntityConstance>;
+    name: string;
+    warSupport: number;
+    stamina: number;
+    HP: number;
+    org: number;
+    loc: Location;
+    status: EntityStatus[] = [];
+    equippedWeapon: Weapon;
+    equippedArmour: Armour;
+    id: {
+        botType: BotType;
+        isPlayer: boolean;
+        isPvp: boolean;
+    };
+
+    constructor(_option: Partial<Entity>) {
+        const options: Entity = Object.assign({
+            warSupport: 1,
+            stamina: 1,
+            base: NewObject(characterJSON.Dummy),
+            name: 'UnregisteredEntity',
+            HP: 0,
+            org: 0,
+            loc: 'front',
+            equippedWeapon: GetEmptyWeapon(),
+            equippedArmour: GetEmptyArmour(),
+            status: [],
+            id: {
+                botType: 'player',
+                isPlayer: true,
+                isPvp: false,
+            }
+        }, _option);
+
+        this.base = options.base;
+        this.name = options.name;
+        this.warSupport = options.warSupport;
+        this.stamina = options.stamina;
+        this.HP = options.HP;
+        this.org = options.org;
+        this.loc = options.loc;
+        this.equippedWeapon = options.equippedWeapon;
+        this.equippedArmour = options.equippedArmour;
+        this.id = options.id;
+    }
+
+    applyCurrentStatus() {
+        const virtualStats = NewObject(this) as Entity;
+        this.status.forEach(s => {
+            switch (s.type) {
+                case EntityStatusType.IncreaseStat:
+                    virtualStats.base[s.name] += s.value;
+                    break;
+                case EntityStatusType.DecreaseStat:
+                    virtualStats.base[s.name] -= s.value;
+                    break;
+                case EntityStatusType.MultiplyStat:
+                    virtualStats.base[s.name] *= s.value;
+                    break;
+            }
+        });
+
+        return virtualStats;
+    }
+}
 
 export class Battle extends EventEmitter {
-    static readonly LOGCO_ORG = 11.1;
-    static readonly XCO_ORG = 0.23;
-    static readonly LOGCO_STR_HP = 8.3;
-    static readonly XCO_STR_HP = 0.6;
-    static readonly LOGCO_SIZ_HP = 12;
-    static readonly XCO_SIZ_HP = 0.7;
-
     // Discord 
     channel: TextBasedChannel;
     battleUI: Message | null = null;
@@ -21,14 +82,14 @@ export class Battle extends EventEmitter {
 
     // Party
     players: UserData[];
-    playerEntities: Entity[];
+    playerEntities: EntityInstance[];
 
     // Entity-Related Information
     totalEnemyCount: number = 0;
     enemyCount: number = 0;
     playerCount: number = 0;
-    battlefield: BattleField = new Map<Location, Entity[]>();
-    toBeSpawnedRecord: Record<Location, Entity[]> = {
+    battlefield: BattleField = new Map<Location, EntityInstance[]>();
+    toBeSpawnedRecord: Record<Location, EntityInstance[]> = {
         'back': [],
         'back-support': [],
         'front': [],
@@ -48,7 +109,7 @@ export class Battle extends EventEmitter {
         this.players = party;
         this.pvp = c.pvp;
         this.channel = c.channel;
-        this.on("procAbility", (ability: Ability) => {
+        this.on(AbilityTrigger.Proc, (ability: AbilityInstance) => {
             console.log(`Ability: ${ability.name} executed`);
         });
     }
@@ -60,12 +121,12 @@ export class Battle extends EventEmitter {
             battle.players.map(async p => {
                 const c = await GetCombatCharacter(p.combatCharacters[0])
                 if (c) {
-                    const cons = Battle.GetEntityConstance(c, p);
-                    return Battle.GetEntity(cons);
+                    const cons = GetEntityConstance(c, p);
+                    return GetEntity(cons);
                 }
                 else return null;
             })
-        ).then(c => c.filter(x => x !== null) as Entity[]);
+        ).then(c => c.filter(x => x !== null) as EntityInstance[]);
         
         battle.userCache = c.users.reduce((acc, u) => {
             acc[u.id] = u;
@@ -75,170 +136,32 @@ export class Battle extends EventEmitter {
         battle.toBeSpawnedRecord.front = fighters;
         return battle;
     }
-
-    static GetAdditionalOrgansation(entity: Character): number {
-        const { fai, spr, int } = entity;
-        const x = roundToDecimalPlace(fai + spr * 0.4 - int * 0.1, 3);
-        return Battle.LOGCO_ORG * Math.log(Battle.XCO_ORG * x + 1) + Battle.GetAdditionalHP(entity) * 0.1;
-    }
-
-    static GetAdditionalHP(entity: Character): number {
-        const { str, siz } = entity;
-        const x = roundToDecimalPlace(str * 0.33, 3);
-        const z = roundToDecimalPlace(siz * 0.67, 3);
-        return Battle.LOGCO_STR_HP * Math.log(Battle.XCO_STR_HP * x + 1) + Battle.LOGCO_SIZ_HP * Math.log(Battle.XCO_SIZ_HP * z + 1);
-    }
-
-    static GetEmptyArmour(): Armour {
-        return {
-            name: 'None',
-            armour: 0,
-        }
-    }
-
-    static GetEmptyWeapon(): Weapon {
-        return {
-            baseDamage: 1,
-            name: 'None',
-            type: 'physical',
-            piercing: 0,
-            multipliers: [],
-        }
-    }
-
-    static GetEntityConstance(entity: Character, player?: User | UserData): EntityConstance {
-        const { name, str, dex, spd, siz, int, spr, fai } = entity;
-        return {
-            id: player?.id,
-            username: player?.username,
-            name: name,
-            str: str,
-            dex: dex,
-            spd: spd,
-            siz: siz,
-            int: int,
-            spr: spr,
-            fai: fai,
-            maxHP: 10 + Battle.GetAdditionalHP(entity),
-            maxOrg: 5 + Battle.GetAdditionalOrgansation(entity),
-        }
-    }
-
-    static GetEntity(entity: EntityConstance): Entity {
-        return {
-            warSupport: 1,
-            stamina: 1,
-            base: entity,
-            name: entity.name,
-            HP: entity.maxHP,
-            org: entity.maxOrg,
-            loc: 'front',
-            equippedWeapon: Battle.GetEmptyWeapon(),
-            equippedArmour: Battle.GetEmptyArmour(),
-            id: {
-                botType: 'approach_attack',
-                isPlayer: true,
-                isPvp: false,
-            }
-        }
-    }
-
-    static GetBruteForce(entity: Entity): number {
-        const { str, siz, spd } = entity.base;
-        return (str * 0.45) * (1 + (siz ^ 1.5) * 0.3 + spd * 0.1);
-    }
-
-    static GetWeaponPrecision(entity: Entity): number {
-        const { dex, spd } = entity.base;
-        return dex * 0.85 + spd * 0.15;
-    }
-
-    static GetAccuracy(entity: Entity): number {
-        const { dex, spd } = entity.base;
-        return dex * 0.75 + spd * 0.25;
-    }
-
-    static GetMagicPotential(entity: Entity): number {
-        const { int, spr, fai } = entity.base;
-        return int * 0.25 + spr * 0.15 - fai * 0.1;
-    }
-
-    static GetSpiritualConnection(entity: Entity): number {
-        const { int, spr, fai } = entity.base;
-        return spr * 0.25 + fai * 0.15 - int * 0.1;
-    }
-
-    static GetDivineConnection(entity: Entity): number {
-        const { int, spr, fai } = entity.base;
-        return fai * 0.25 + spr * 0.15 - int * 0.1;
-    }
-
-    static Decipher(e: Entity, x: WeaponMultiplier): number {
-        if (typeof x[2] === 'number') {
-            switch (x[0]) {
-                case 'bruteForce':
-                    return Battle.GetBruteForce(e) * x[2];
-                case 'magicPower':
-                    return Battle.GetMagicPotential(e) * x[2];
-                case 'spiritPower':
-                    return Battle.GetSpiritualConnection(e) * x[2];
-                case 'faithPower':
-                    return Battle.GetDivineConnection(e) * x[2];
-                case 'weaponPrecision':
-                    return Battle.GetWeaponPrecision(e) * x[2];
-                default:
-                    return e.base[x[0]] * x[2];
-            }
-        }
-        else {
-            switch (x[0]) {
-                case 'bruteForce':
-                    return Battle.GetBruteForce(e) * Battle.Decipher(e, x[2]);
-                case 'magicPower':
-                    return Battle.GetMagicPotential(e) * Battle.Decipher(e, x[2]);
-                case 'spiritPower':
-                    return Battle.GetSpiritualConnection(e) * Battle.Decipher(e, x[2]);
-                case 'faithPower':
-                    return Battle.GetDivineConnection(e) * Battle.Decipher(e, x[2]);
-                case 'weaponPrecision':
-                    return Battle.GetWeaponPrecision(e) * Battle.Decipher(e, x[2]);
-                default:
-                    return e.base[x[0]] * Battle.Decipher(e, x[2]);
-            }
-        }
-    } 
-
-    static CalculateDamage(attacker: Entity, defender: Entity, ability?: Ability) {
-        console.log(`\tClash: ${attacker.base.username} => ${defender.base.username}`);
-        // let fate: ClashResultFate = 'Miss';
-        const damage = attacker.equippedWeapon.multipliers.reduce((acc: number, [stat, action, multiplier]) => {
-            console.log(`\t\t${stat} ${action} ${multiplier}: ${acc} ${action === 'add' ? `+ ${Battle.Decipher(attacker, [stat, action, multiplier])}` : `* ${1 + Battle.Decipher(attacker, [stat, action, multiplier])}`}`);
-            switch (action) {
-                case 'add':
-                    return acc + Battle.Decipher(attacker, [stat, action, multiplier]);
-                case 'multiply':
-                    return acc * (1 + Battle.Decipher(attacker, [stat, action, multiplier]));
-                default:
-                    return acc;
-            }
-        }, 0);
-        const jitter = uniformRandom(0.95, 1.05);
-
-        return damage * jitter;
-    }
     
-    static Clash({
-        attacker,
-        defender,
-        ability,
-    }: {attacker: Character,defender: Character,ability: Ability,}
-    ) {
-        const attackerEntity = Battle.GetEntityConstance(attacker);
-        const defenderEntity = Battle.GetEntityConstance(defender);
-        const attackerEntityInstance = Battle.GetEntity(attackerEntity);
-        const defenderEntityInstance = Battle.GetEntity(defenderEntity);
-        const damage = Battle.CalculateDamage(attackerEntityInstance, defenderEntityInstance, ability);
-        return damage;
+    /**
+     * A skirmish is defined as such: a series of clashes between the attacker and the defender, after
+     * both had chosen their series of actions under the attack interface.
+     * @param attacker 
+     * @param defender 
+     * @returns 
+     */
+    skirmish(attacker: EntityInstance, defender: EntityInstance) {
+        console.log(`Skirmish: ${attacker.base.username} => ${defender.base.username}`);
+
+        const virtualAttacker = NewObject(attacker);
+        const virtualDefender = NewObject(defender);
+        
+        // round start
+        // activate abilities: always, roundStart
+        this.emit(AbilityTrigger.StartRound, attacker, defender);
+
+        // first hit begins
+        // activate abilities: onUse, onHit, onMiss, onCrit
+
+        // round end effects
+        // activate abilities: roundEnd
+        this.emit(AbilityTrigger.EndRound, attacker, defender);
+
+        return void 0;
     }
 
     private getTeamStatusString(team: Team, ready: string[]) {
@@ -253,11 +176,12 @@ export class Battle extends EventEmitter {
         return teamHeader + individualStatus;
     }
 
-    ensureBattlefieldFormation(formation: Location): Entity[] {
-        return this.battlefield.get(formation) || this.battlefield.set(formation, []).get(formation)!;
+    ensureBattlefieldFormation(formation: Location): EntityInstance[] {
+        const form = this.battlefield.get(formation) || this.battlefield.set(formation, []).get(formation)!;
+        return form;
     }
 
-    queueSpawn(entity: Entity, loc: Location) {
+    queueSpawn(entity: EntityInstance, loc: Location) {
         this.toBeSpawnedRecord[loc].push(entity);
     }
 
@@ -301,7 +225,6 @@ export class Battle extends EventEmitter {
     }
 
     async startRound() {
-        this.emit('startRound');
         if (!this.battleUI) {
             this.battleUI = await this.channel.send({
                 embeds: [
@@ -397,10 +320,10 @@ export class Battle extends EventEmitter {
                                     .setCustomId(selectMenuID)
                                     .addOptions(
                                         mode === 'select-ability' ?
-                                            Array.from(Object.values(abilitiesJSON)).map(c => (
+                                            Array.from(Object.entries(AbilityName)).map(c => (
                                                 {
-                                                    label: c.name,
-                                                    value: c.name
+                                                    label: c[0],
+                                                    value: c[1]
                                                 }
                                             )):
                                             this.playerEntities.map(e => ({
@@ -483,6 +406,17 @@ export class Battle extends EventEmitter {
             }
         }, { message: this.battleUI });
 
-        this.emit('endRound');
+
+        // 3. Once all players have ended their turn, the round will start.
+        await new Promise((resolve) => {
+            const interval = setInterval(() => {
+                if (isSubset(this.players.map(p => p.id), turnEnded)) {
+                    clearInterval(interval);
+                    resolve(void 0);
+                }
+            }, 1000);
+        });
+
+        // this.skirmish(this.playerEntities[0], this.playerEntities[1]);
     }
 }

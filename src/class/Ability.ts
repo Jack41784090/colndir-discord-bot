@@ -1,28 +1,28 @@
-import { AOE, AbilityConfig, AbilityTrigger, Location, Targetting } from "@ctypes";
+import { AOE, Ability, AbilityName, AbilityTrigger, Entity, Location, Targetting } from "@ctypes";
 import { EventEmitter } from "events";
 import { Battle } from "./Battle";
 
-export class Ability extends EventEmitter {
+export class AbilityInstance extends EventEmitter implements Ability {
     associatedBattle: Battle;
     trigger: AbilityTrigger;
-    name: string;
+    name: AbilityName;
     desc: string | null;
     targetting: Targetting;
     AOE: AOE;
     castLocation: Location[];
     targetLocation: Location[];
 
-    constructor(_option: Partial<AbilityConfig> & { associatedBattle: Battle }) {
+    constructor(_option: Partial<Ability> & { associatedBattle: Battle }) {
         super();
         const options = Object.assign({
-            trigger: 'always',
-            name: 'Ability',
+            trigger: AbilityTrigger.Always,
+            name: AbilityName.Slash,
             desc: null,
             targetting: 'enemy',
             AOE: 1,
             castLocation: ['front'],
             targetLocation: ['front'],
-        }, _option) as AbilityConfig;
+        } as Ability, _option);
         
         this.associatedBattle = options.associatedBattle;
         this.trigger = options.trigger;
@@ -33,14 +33,15 @@ export class Ability extends EventEmitter {
         this.castLocation = options.castLocation;
         this.targetLocation = options.targetLocation;
 
-        this.associatedBattle.on(this.trigger, () => {
-            this.execute();
+        this.associatedBattle.on(this.trigger, (attacker: Entity, defender: Entity) => {
+            console.log(`Ability: ${this.name} triggered via [${this.trigger}]`);
+            this.execute(attacker, defender);
         });
     }
 
-    execute() {
+    execute(attacker: Entity, defender: Entity) {
         console.log(`Ability: ${this.name} executed via [${this.trigger}]`);
-        this.associatedBattle.emit("procAbility", this);
+        this.associatedBattle.emit(AbilityTrigger.Proc, this);
         switch (this.name) {
             
         }

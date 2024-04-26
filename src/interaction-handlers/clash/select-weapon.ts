@@ -1,7 +1,6 @@
-import { Battle } from '@classes/Battle';
 import characterJsons from '@data/characters.json';
-import weaponJsons from '@data/weapons.json';
-import { roundToDecimalPlace } from '@functions';
+import { weaponMap } from '@data/weapons';
+import { GetEntity, GetEntityConstance, NewObject, roundToDecimalPlace } from '@functions';
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import { Colors, EmbedBuilder, StringSelectMenuInteraction } from 'discord.js';
 
@@ -29,10 +28,10 @@ export class SelectCharacterSelectHandler extends InteractionHandler {
 
         console.log(`Attacker: ${attackerName}, Defender: ${defenderName}, Weapon: ${weaponName}`)
 
-        const attacker = Battle.GetEntity(Battle.GetEntityConstance(characterJsons[attackerName as keyof typeof characterJsons] as any));
-        attacker.equippedWeapon = weaponJsons[weaponName as keyof typeof weaponJsons] as any;
-        const defender = Battle.GetEntity(Battle.GetEntityConstance(characterJsons[defenderName as keyof typeof characterJsons] as any));
-        const damage = Battle.CalculateDamage(attacker, defender);
+        const attacker = GetEntity(GetEntityConstance(characterJsons[attackerName as keyof typeof characterJsons] as any));
+        attacker.equippedWeapon = NewObject(weaponMap.get(weaponName)!);
+        const defender = GetEntity(GetEntityConstance(characterJsons[defenderName as keyof typeof characterJsons] as any));
+        const damage = 0;
 
         return await interaction.followUp({
             embeds: [

@@ -1,3 +1,8 @@
+import bot from "@bot";
+import { AbilityInstance } from "@classes/Ability";
+import { Battle } from "@classes/Battle";
+import { IKE_USERID, MERC_USERID } from "@constants";
+import { AbilityTrigger } from "@ctypes";
 import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
 
 export function capitalize(string: string): string {
@@ -160,6 +165,35 @@ export function gaussianRandom(_mean: number, _standardDeviation: number): numbe
 }
 export function clamp(value: number, min: number = Number.NEGATIVE_INFINITY, max: number = Number.POSITIVE_INFINITY) {
     return Math.max(Math.min(value, max), min);
+}
+
+export async function TestFunction() {
+    const ike = await bot.users.fetch(IKE_USERID);
+    const merc = await bot.users.fetch(MERC_USERID)
+    const b = await Battle.Create({
+        channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
+        users: [merc, ike],
+        teamMapping: {
+            'enemy': [merc],
+            'player': [ike]
+        },
+        pvp: true
+    })
+    
+    const a1 = new AbilityInstance({
+        associatedBattle: b,
+        trigger: AbilityTrigger.StartRound,
+    });
+    const a2 = new AbilityInstance({
+        associatedBattle: b,
+        trigger: AbilityTrigger.EndRound,
+    });
+    b.spawnUsers();
+    b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+}
+
+export function isSubset<T>(superset: T[], subset: T[]): boolean {
+    return subset.every(value => superset.includes(value));
 }
 
 export * from './add-to-team';

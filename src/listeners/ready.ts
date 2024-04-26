@@ -1,5 +1,5 @@
 import { HOUR } from '@constants';
-import { updateCharacterPost } from '@functions';
+import { TestFunction, updateCharacterPost } from '@functions';
 import { Events, Listener } from '@sapphire/framework';
 import { ChannelType, ForumChannel, type Client } from 'discord.js';
 import bot from '../bot';
@@ -99,21 +99,7 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
     public async run(client: Client) {
         const { username, id } = client.user!;
         this.container.logger.info(`Successfully logged in as ${username} (${id})`);
-
-        // const azaera = Battle.GetEntity(Battle.GetEntityConstance(characterJsons.Azaera));
-        // azaera.equippedWeapon = {
-        //     baseMultiplier: 1.12,
-        //     name: 'Enchanted Sword',
-        //     type: 'physical',
-        //     piercing: 0,
-        //     multipliers: [
-        //         ['int', .25],
-        //     ],
-        // }
-        // const ogaefa = Battle.GetEntity(Battle.GetEntityConstance(characterJsons.Ogaefa));
-        // const damage = Battle.CalculateDamage(azaera, ogaefa);
-        // console.log(`Damage: ${damage}`);
-
+        TestFunction();
         // begin the lore channel auto-org system
         setInterval(async () => {
             this.loreChannelsUpdate();

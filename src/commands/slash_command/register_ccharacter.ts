@@ -20,13 +20,13 @@ export class RegisterCCharCommand extends Command {
                 .setName("register-combat-character")
                 .setDescription("Register a combat character");
             for (const s of this.cc_keys) {
-                if (typeof characterExampleJSON.Azaera[s] === 'string') {
+                if (typeof characterExampleJSON.Dummy[s] === 'string') {
                     s_builder.addStringOption(option => option
                         .setName(s.toLowerCase())
                         .setDescription(`The ${s} of the character`)
                         .setRequired(true));
                 }
-                else if (typeof characterExampleJSON.Azaera[s] === 'number') {
+                else if (typeof characterExampleJSON.Dummy[s] === 'number') {
                     s_builder.addIntegerOption(option => option
                         .setName(s.toLowerCase())
                         .setDescription(`The ${s} of the character`)

@@ -1,4 +1,4 @@
-import weaponsJson from '@data/weapons.json';
+import { weaponMap } from '@data/weapons';
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import { APIEmbed, ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction } from 'discord.js';
 
@@ -33,7 +33,7 @@ export class SelectCharacterSelectHandler extends InteractionHandler {
                         new StringSelectMenuBuilder()
                             .setCustomId(`select-weapon`)
                             .setPlaceholder('Select a weapon')
-                            .addOptions(Object.keys(weaponsJson).map(cn => ({ label: cn, value: cn }))),
+                            .addOptions(Array.from(weaponMap.keys()).map(cn => ({ label: cn, value: cn }))),
                     )
             ]
         });
