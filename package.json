@@ -18,7 +18,8 @@
     "firebase": "^10.11.0",
     "firebase-admin": "^12.1.0",
     "googleapis": "^134.0.0",
-    "openai": "^4.38.3"
+    "openai": "^4.38.3",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

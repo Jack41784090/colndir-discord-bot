@@ -1,9 +1,5 @@
-import bot from "@bot";
-import { AbilityInstance } from "@classes/Ability";
-import { Battle } from "@classes/Battle";
-import { IKE_USERID, MERC_USERID } from "@constants";
-import { AbilityTrigger } from "@ctypes";
 import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
+import ytdl from "ytdl-core";
 
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
@@ -167,29 +163,56 @@ export function clamp(value: number, min: number = Number.NEGATIVE_INFINITY, max
     return Math.max(Math.min(value, max), min);
 }
 
-export async function TestFunction() {
-    const ike = await bot.users.fetch(IKE_USERID);
-    const merc = await bot.users.fetch(MERC_USERID)
-    const b = await Battle.Create({
-        channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
-        users: [merc, ike],
-        teamMapping: {
-            'enemy': [merc],
-            'player': [ike]
-        },
-        pvp: true
-    })
+export function extractYouTubeID(url: string) {
+    const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
+  
+export async function getVideoInfo(youtubeLink: string) {
+    const match = extractYouTubeID(youtubeLink);
+    if (!match) return null;
     
-    const a1 = new AbilityInstance({
-        associatedBattle: b,
-        trigger: AbilityTrigger.StartRound,
-    });
-    const a2 = new AbilityInstance({
-        associatedBattle: b,
-        trigger: AbilityTrigger.EndRound,
-    });
-    b.spawnUsers();
-    b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+    try {
+        const videoInfo = ytdl(`https://www.youtube.com/watch?v=${match}`);
+        return videoInfo;
+    }
+    catch(e) {
+        return e as Error;
+    }
+}
+
+export async function TestFunction() {
+    // const ike = await bot.users.fetch(IKE_USERID);
+    // const merc = await bot.users.fetch(MERC_USERID)
+    // const b = await Battle.Create({
+    //     channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
+    //     users: [merc, ike],
+    //     teamMapping: {
+    //         'enemy': [merc],
+    //         'player': [ike]
+    //     },
+    //     pvp: true
+    // })
+    
+    // const a1 = new AbilityInstance({
+    //     associatedBattle: b,
+    //     trigger: AbilityTrigger.StartRound,
+    // });
+    // const a2 = new AbilityInstance({
+    //     associatedBattle: b,
+    //     trigger: AbilityTrigger.EndRound,
+    // });
+    // b.spawnUsers();
+    // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+
+    // const itr = await getVideoInfo('https://www.youtube.com/watch?v=nmG2gtmUDvM');
+    // if (itr) {
+    //     const channel = await bot.channels.fetch('1232126725039587389') as TextBasedChannel;
+    //     channel.send({
+    //         files: [ { attachment: itr, name: 'video.mp4' } ],
+    //     })
+    // }
 }
 
 export function isSubset<T>(superset: T[], subset: T[]): boolean {
