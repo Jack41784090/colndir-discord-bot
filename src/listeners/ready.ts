@@ -91,9 +91,8 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
                     const t = all[i]
                     console.log(`Checking thread ${t.name}`);
                     
-
-                    t.setArchived(false)
-                        .then(t => updateCharacterPost)
+                    await t.setArchived(false)
+                        .then(t => updateCharacterPost(t))
                         .catch(e => console.error(e));
                 }
             }
@@ -103,10 +102,10 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
     public async run(client: Client) {
         const { username, id } = client.user!;
         this.container.logger.info(`Successfully logged in as ${username} (${id})`);
-        // begin the lore channel auto-org system
+
         setInterval(async () => {
-            this.loreChannelsUpdate();
-            this.thumbnailUpdate();
+            await this.loreChannelsUpdate();
+            await this.thumbnailUpdate();
         }, 12 * HOUR)
     }
 }
