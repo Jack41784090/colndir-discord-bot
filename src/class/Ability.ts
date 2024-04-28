@@ -1,8 +1,13 @@
-import { AOE, Ability, AbilityName, AbilityTrigger, Entity, Location, Targetting } from "@ctypes";
+import { AOE, Ability, AbilityName, AbilityTrigger, Entity, EntityStatusApplyType, EntityStatusType, Location, Targetting } from "@ctypes";
+import { abilitiesMap } from "@data/abilities";
+import { NewObject, getDefaultAbility } from "@functions";
 import { EventEmitter } from "events";
-import { Battle } from "./Battle";
+import { Battle, EntityInstance } from "./Battle";
 
 export class AbilityInstance extends EventEmitter implements Ability {
+    initiator?: EntityInstance;
+    target?: EntityInstance;
+
     associatedBattle: Battle;
     trigger: AbilityTrigger;
     name: AbilityName;
@@ -11,18 +16,12 @@ export class AbilityInstance extends EventEmitter implements Ability {
     AOE: AOE;
     castLocation: Location[];
     targetLocation: Location[];
+    timeRequired: number;
 
     constructor(_option: Partial<Ability> & { associatedBattle: Battle }) {
         super();
-        const options = Object.assign({
-            trigger: AbilityTrigger.Always,
-            name: AbilityName.Slash,
-            desc: null,
-            targetting: 'enemy',
-            AOE: 1,
-            castLocation: ['front'],
-            targetLocation: ['front'],
-        } as Ability, _option);
+        const basis = abilitiesMap.get(_option.name || AbilityName.None) ?? getDefaultAbility();
+        const options = Object.assign(NewObject(basis), _option);
         
         this.associatedBattle = options.associatedBattle;
         this.trigger = options.trigger;
@@ -32,18 +31,59 @@ export class AbilityInstance extends EventEmitter implements Ability {
         this.AOE = options.AOE;
         this.castLocation = options.castLocation;
         this.targetLocation = options.targetLocation;
+        this.initiator = options.initiator;
+        this.target = options.target;
+        this.timeRequired = options.timeRequired;
+    }
 
-        this.associatedBattle.on(this.trigger, (attacker: Entity, defender: Entity) => {
-            console.log(`Ability: ${this.name} triggered via [${this.trigger}]`);
-            this.execute(attacker, defender);
-        });
+    confirm() {
+        console.log(`Ability: ${this.name} confirmed with [${this.trigger}]`);
+        switch (this.trigger) {
+            case AbilityTrigger.OnUse:
+            case AbilityTrigger.OnHit:
+                this.on(this.trigger, (attacker: Entity, defender: Entity) => {
+                    this.execute(attacker, defender);
+                });
+                break;
+            default:
+                this.associatedBattle.on(this.trigger, (attacker: Entity, defender: Entity) => {
+                    this.execute(attacker, defender);
+                });
+                break;
+        }
+        
     }
 
     execute(attacker: Entity, defender: Entity) {
         console.log(`Ability: ${this.name} executed via [${this.trigger}]`);
         this.associatedBattle.emit(AbilityTrigger.Proc, this);
         switch (this.name) {
-            
+            case AbilityName.Stab:
+                defender.status.push({
+                    type: EntityStatusType.Bleed,
+                    duration: 20,
+                    value: 1,
+                    applyType: EntityStatusApplyType.stackable,
+                    source: {
+                        from: this
+                    }
+                })
+                break
+            case AbilityName.Sigurdian_Strength:
+                const existing = attacker.status.find(s => s.source.from === this);
+                if (!existing) {
+                    attacker.status.push({
+                        type: EntityStatusType.IncreaseStat,
+                        duration: Number.POSITIVE_INFINITY,
+                        value: 1,
+                        name: 'str',
+                        applyType: EntityStatusApplyType.persistent,
+                        source: {
+                            from: this
+                        }
+                    })
+                }
+                break;
         }
     }
 }

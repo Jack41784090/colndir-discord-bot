@@ -1,7 +1,8 @@
 import bot from "@bot";
-import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BotType, Entity, EntityConstance, EntityStatus, EntityStatusType, Location, Team, UserData, Weapon } from "@ctypes";
+import { Emoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
+import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BotType, Entity, EntityConstance, EntityStatus, EntityStatusApplyType, EntityStatusType, Location, Team, UserData, Weapon } from "@ctypes";
 import characterJSON from "@data/characters.json";
-import { GetCombatCharacter, GetEmptyArmour, GetEmptyWeapon, GetEntity, GetEntityConstance, GetUserData, NewObject, capitalize, getErrorEmbed, isSubset, setUpInteractionCollect } from "@functions";
+import { Clash, GetCombatCharacter, GetEmptyArmour, GetEmptyWeapon, GetEntity, GetEntityConstance, GetUserData, NewObject, capitalize, getErrorEmbed, setUpInteractionCollect, stringifyAbilityList } from "@functions";
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, EmbedBuilder, InteractionCollector, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
 import { AbilityInstance } from "./Ability";
@@ -54,21 +55,50 @@ export class EntityInstance implements Entity {
         this.id = options.id;
     }
 
+    applyStatus(s: EntityStatus) {
+        const virtualStats = NewObject(this) as Entity;
+        switch (s.type) {
+            case EntityStatusType.IncreaseStat:
+                if (s.name)
+                    virtualStats.base[s.name] += s.value;
+                break;
+            case EntityStatusType.DecreaseStat:
+                if (s.name)
+                    virtualStats.base[s.name] -= s.value;
+                break;
+            case EntityStatusType.MultiplyStat:
+                if (s.name)
+                    virtualStats.base[s.name] *= s.value;
+                break;
+            case EntityStatusType.Bleed:
+                virtualStats.HP -= s.value;
+                break;
+        }
+        s.duration--;
+        if (s.duration <= 0) {
+            const i = this.status.indexOf(s);
+            this.status.splice(i, 1);
+        }
+        return virtualStats;
+    }
+
     applyCurrentStatus() {
         const virtualStats = NewObject(this) as Entity;
-        this.status.forEach(s => {
-            switch (s.type) {
-                case EntityStatusType.IncreaseStat:
-                    virtualStats.base[s.name] += s.value;
-                    break;
-                case EntityStatusType.DecreaseStat:
-                    virtualStats.base[s.name] -= s.value;
-                    break;
-                case EntityStatusType.MultiplyStat:
-                    virtualStats.base[s.name] *= s.value;
-                    break;
+        for (const s of this.status) {
+            const sameAbilitySources = this.status.filter(x =>
+                x.source.from instanceof AbilityInstance // check if source is an ability
+                && (x.source.from as AbilityInstance).name === s.source.from.name); // check if the ability name is the same
+            if (s.applyType === EntityStatusApplyType.persistent && sameAbilitySources.length > 1) {
+                const strongest = sameAbilitySources.reduce((acc, x) => {
+                    if (x.value > acc.value) return x;
+                    else return acc;
+                }, s);
+                Object.assign(virtualStats, this.applyStatus(strongest));
             }
-        });
+            else {
+                Object.assign(virtualStats, this.applyStatus(s));
+            }
+        }
 
         return virtualStats;
     }
@@ -110,7 +140,7 @@ export class Battle extends EventEmitter {
         this.pvp = c.pvp;
         this.channel = c.channel;
         this.on(AbilityTrigger.Proc, (ability: AbilityInstance) => {
-            console.log(`Ability: ${ability.name} executed`);
+            console.log(`Ability: ${ability.name} procceeded`);
         });
     }
 
@@ -122,7 +152,7 @@ export class Battle extends EventEmitter {
                 const c = await GetCombatCharacter(p.combatCharacters[0])
                 if (c) {
                     const cons = GetEntityConstance(c, p);
-                    return GetEntity(cons);
+                    return GetEntity(cons, { name: c.name, id: { botType: BotType.Player, isPlayer: true, isPvp: true } });
                 }
                 else return null;
             })
@@ -133,7 +163,7 @@ export class Battle extends EventEmitter {
             return acc;
         }, battle.userCache);
         battle.teamMapping = NewObject(c.teamMapping);
-        battle.toBeSpawnedRecord.front = fighters;
+        battle.queueSpawn('front', ...fighters.filter(f => f.id.botType === 'player'));
         return battle;
     }
     
@@ -144,24 +174,38 @@ export class Battle extends EventEmitter {
      * @param defender 
      * @returns 
      */
-    skirmish(attacker: EntityInstance, defender: EntityInstance) {
+    skirmish(attacker: EntityInstance, attackerSequence: AbilityInstance[], defender: EntityInstance, defenderSequence: AbilityInstance[]) {
         console.log(`Skirmish: ${attacker.base.username} => ${defender.base.username}`);
 
-        const virtualAttacker = NewObject(attacker);
-        const virtualDefender = NewObject(defender);
+        const roundAttacker = NewObject(attacker) as Entity;
+        const roundDefender = NewObject(defender) as Entity;
         
-        // round start
-        // activate abilities: always, roundStart
-        this.emit(AbilityTrigger.StartRound, attacker, defender);
+        this.emit(AbilityTrigger.StartSkirmish, roundAttacker, roundDefender);
+        Object.assign(roundAttacker, attacker.applyCurrentStatus());
+        Object.assign(roundDefender, defender.applyCurrentStatus());
 
-        // first hit begins
-        // activate abilities: onUse, onHit, onMiss, onCrit
+        const clashResult = Clash(roundAttacker, roundDefender);
+        const {
+            pierceDamage,
+            forceDamage,
+            totalDamage,
+        } = clashResult
+        this.emit(AbilityTrigger.OnUse, roundAttacker, roundDefender);
 
-        // round end effects
-        // activate abilities: roundEnd
-        this.emit(AbilityTrigger.EndRound, attacker, defender);
+        this.emit(AbilityTrigger.EndSkirmish, roundAttacker, roundDefender);
+
+        this.syncVirtualandActual(roundAttacker, attacker);
+        this.syncVirtualandActual(roundDefender, defender);
 
         return void 0;
+    }
+
+    syncVirtualandActual(virtual: Entity, actual: EntityInstance) {
+        actual.HP = virtual.HP;
+        actual.stamina = virtual.stamina;
+        actual.org = virtual.org;
+        actual.warSupport = virtual.warSupport;
+        actual.status = virtual.status;
     }
 
     private getTeamStatusString(team: Team, ready: string[]) {
@@ -181,8 +225,8 @@ export class Battle extends EventEmitter {
         return form;
     }
 
-    queueSpawn(entity: EntityInstance, loc: Location) {
-        this.toBeSpawnedRecord[loc].push(entity);
+    queueSpawn(loc: Location, ...entity: EntityInstance[]) {
+        this.toBeSpawnedRecord[loc].push(...entity);
     }
 
     spawnUsers() {
@@ -239,6 +283,7 @@ export class Battle extends EventEmitter {
 
         // 1. Click the sword button to activate the attack interface.
         // Each player can only activate the attack interface once, but can come back to it once they end turn.
+        const selectedActionsMap = new Map<string, AbilityInstance[]>();
         const turnEnded: string[] = [];
         const activatedList: string[] = [];
         const enter = async (u: User) => {
@@ -283,9 +328,23 @@ export class Battle extends EventEmitter {
                         // console.log('Closing interface')
                         listener.stop();
                         ended = true;
+                        selectedActionsMap.set(interface_itr.user.id, abilityList);
                         exit(interface_itr.user).then(() => {
                             resolve(void 0);
                         });
+                    }
+                    const getInterface = () => {
+                        return {
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setTitle("Attack Interface")
+                                    .setDescription(`${Emoji.TARGET}: ${target?.name || 'None'}\n${Emoji.SWORD}: ${stringifyAbilityList(abilityList) || 'None'}`)
+                            ],
+                            components: [
+                                returnButtonActionRow(),
+                                returnSelectMenuActionRow(),
+                            ]
+                        }
                     }
                     const returnButtonActionRow = () => {
                         return new ActionRowBuilder<ButtonBuilder>()
@@ -303,14 +362,14 @@ export class Battle extends EventEmitter {
                                     .setStyle(ButtonStyle.Primary)
                                     .setEmoji(
                                         mode === 'select-ability' ?
-                                        '🎯':
-                                        '⚔️'
+                                        Emoji.TARGET:
+                                        Emoji.SWORD
                                     ),
                                 new ButtonBuilder()
                                     .setCustomId(endTurnID)
                                     .setStyle(ButtonStyle.Danger)
                                     .setLabel('End Turn')
-                                    .setEmoji('🛑')
+                                    .setEmoji(Emoji.RED_SIGN)
                             )
                     }
                     const returnSelectMenuActionRow = () => {
@@ -327,8 +386,8 @@ export class Battle extends EventEmitter {
                                                 }
                                             )):
                                             this.playerEntities.map(e => ({
-                                                label: e.name,
-                                                value: e.base.username!
+                                                label: `${e.name} / ${e.base.username}`,
+                                                value: e.base.id || ''
                                             }))
                                     )
                             )
@@ -336,16 +395,7 @@ export class Battle extends EventEmitter {
                     const listenToQueue = async (reason: string) => {
                         if (ended) return;
                         // console.log('L ' + reason);
-                        await interface_itr.editReply({
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setTitle("Attack Interface")
-                            ],
-                            components: [
-                                returnButtonActionRow(),
-                                returnSelectMenuActionRow(),
-                            ]
-                        });
+                        await interface_itr.editReply(getInterface());
                         listener = setUpInteractionCollect(bot.user?.client!, async itr => {
                             if (itr.isStringSelectMenu() && itr.customId === selectMenuID) {
                                 handleSelectMenu(itr);
@@ -356,15 +406,17 @@ export class Battle extends EventEmitter {
                             else {
                                 listenToQueue('invalid interaction');
                             }
-                        }, { max: 1, message: interfaceMessage, time: 1 * 1000 });
+                        }, { max: 1, message: interfaceMessage, time: INTERFACE_REFRESH_TIME * 1000 });
                         listener.on('end', (c, r) => {
                             // console.log('Listener ended ' + r);
                             if (r === 'time') {
-                                if (timeoutCount > 3) {
+                                timeoutCount++;
+                                if (timeoutCount >= Math.floor(INTERFACE_PERSIST_TIME / INTERFACE_REFRESH_TIME)) {
                                     closeInterface();
                                 }
-                                listenToQueue('timeout');
-                                timeoutCount++;
+                                else {
+                                    listenToQueue('timeout');
+                                }
                             }
                             else if (r === 'limit') {
                                 timeoutCount = 0;
@@ -373,6 +425,23 @@ export class Battle extends EventEmitter {
                     }
                     const handleSelectMenu = async (itr: StringSelectMenuInteraction) => {
                         await itr.deferUpdate();
+                        const selected = itr.values[0];
+                        if (selected) {
+                            if (mode === 'select-ability') {
+                                const ability = new AbilityInstance({ associatedBattle: this, name: selected as AbilityName });
+                                if (ability) {
+                                    mode = 'select-target';
+                                    abilityList.push(ability);
+                                }
+                            }
+                            else {
+                                const selectedTarget = this.playerEntities.find(e => e.base.id === selected);
+                                if (selectedTarget) {
+                                    mode = 'select-ability';
+                                    target = selectedTarget;
+                                }
+                            }
+                        }
                         listenToQueue('select-menu selected');
                     }
                     const handleButton = async (itr: ButtonInteraction) => {
@@ -391,6 +460,8 @@ export class Battle extends EventEmitter {
                     const switchToSelectAbilityID = `switch-to-select-ability_${interface_itr.user.id}`;
                     const switchToSelectTargetID = `switch-to-select-target_${interface_itr.user.id}`;
 
+                    let target: EntityInstance | null = null;
+                    const abilityList: AbilityInstance[] = [];
                     let ended = false;
                     let timeoutCount = 0;
                     let mode: 'select-ability' | 'select-target' = 'select-target';
@@ -410,13 +481,22 @@ export class Battle extends EventEmitter {
         // 3. Once all players have ended their turn, the round will start.
         await new Promise((resolve) => {
             const interval = setInterval(() => {
-                if (isSubset(this.players.map(p => p.id), turnEnded)) {
+                // if (isSubset(this.players.map(p => p.id), turnEnded)) {
+                if (turnEnded.length === 1) {
                     clearInterval(interval);
                     resolve(void 0);
                 }
             }, 1000);
         });
 
-        // this.skirmish(this.playerEntities[0], this.playerEntities[1]);
+        // 4. The round will start, and the skirmish will begin.
+        const p1 = selectedActionsMap.get(this.playerEntities[0].base.id!) || [];
+        const p2 = selectedActionsMap.get(this.playerEntities[1].base.id!) || [];
+        p1.forEach(a => a.confirm());
+        p2.forEach(a => a.confirm());
+        this.skirmish(
+            this.playerEntities[0], p1,
+            this.playerEntities[1], p2,
+        );
     }
 }

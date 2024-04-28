@@ -1,8 +1,8 @@
 import { AbilityInstance } from "@classes/Ability";
 import { EntityInstance } from "@classes/Battle";
-import { LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP } from "@constants";
-import { Armour, Character, Entity, EntityConstance, Reality, UserData, Weapon, WeaponMultiplier } from "@ctypes";
-import { roundToDecimalPlace, uniformRandom } from "@functions";
+import { LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP, forceFailFallCoef, pierceFailFallCoef } from "@constants";
+import { Ability, AbilityName, AbilityTrigger, Armour, Character, Entity, EntityConstance, Reality, UserData, Weapon, WeaponMultiplier } from "@ctypes";
+import { capitalize, roundToDecimalPlace } from "@functions";
 import { Client, CollectedInteraction, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
 
 export function setUpInteractionCollect(
@@ -15,15 +15,9 @@ export function setUpInteractionCollect(
     return interCollector;
 }
 
-export function Clash(attacker: Entity, defender: Entity, ability?: AbilityInstance) {
-    console.log(`\tClash: ${attacker.base.username} => ${defender.base.username}`);
-
-    if (ability) {
-            
-    }
-
-    const damage = attacker.equippedWeapon.multipliers.reduce((acc: number, [stat, action, multiplier]) => {
-        console.log(`\t\t${stat} ${action} ${multiplier}: ${acc} ${action === 'add' ? `+ ${DecipherMultiplier(attacker, [stat, action, multiplier])}` : `* ${1 + DecipherMultiplier(attacker, [stat, action, multiplier])}`}`);
+export function calculateWeaponDamage(attacker: Entity): number {
+    return attacker.equippedWeapon.multipliers.reduce((acc: number, [stat, action, multiplier]) => {
+        // console.log(`\t\t${stat} ${action} ${multiplier}: ${acc} ${action === 'add' ? `+ ${DecipherMultiplier(attacker, [stat, action, multiplier])}` : `* ${1 + DecipherMultiplier(attacker, [stat, action, multiplier])}`}`);
         switch (action) {
             case 'add':
                 return acc + DecipherMultiplier(attacker, [stat, action, multiplier]);
@@ -33,9 +27,72 @@ export function Clash(attacker: Entity, defender: Entity, ability?: AbilityInsta
                 return acc;
         }
     }, 0);
-    const jitter = uniformRandom(0.95, 1.05);
+}
 
-    return damage * jitter;
+export function calculatePierceDamage(attacker: Entity, defender: Entity, weaponDamage = calculateWeaponDamage(attacker)): number {
+    // Pierce damage calculation
+    // if (armourArmour <= weaponPierce) {
+    //     pierceDamage *= (1 + Math.abs(armourArmour - weaponPierce) * 0.1);
+    // }
+    // else if (weaponPierce >= armourArmour * 0.5) {
+    //     pierceDamage -= (armourArmour - weaponPierce);
+    // }
+    // else {
+    //     pierceDamage -= ((armourArmour - weaponPierce)**2);
+    // }
+
+    const weaponPierce = attacker.equippedWeapon.pierce;
+    const weaponForce = attacker.equippedWeapon.force;
+    const armourArmour = defender.equippedArmour.armour;
+    const armourStack = Math.min(10, armourArmour / weaponPierce);
+    let pierceDamage = weaponDamage * (1 + weaponForce * 0.1); // Base damage calculation with force included
+
+    if (weaponPierce <= armourArmour) {
+        pierceDamage *= Math.exp(-pierceFailFallCoef * armourStack * (armourArmour - weaponPierce))
+    }
+    else {
+        pierceDamage += 0.5 * (weaponPierce - armourArmour)
+    }
+    return pierceDamage
+}
+
+export function calculateForceDamage(attacker: Entity, defender: Entity, weaponDamage = calculateWeaponDamage(attacker)): number {
+    const weaponPierce = attacker.equippedWeapon.pierce;
+    const weaponForce = attacker.equippedWeapon.force;
+    const armourDefence = defender.equippedArmour.defence;
+    const defenceStack = Math.min(10, armourDefence / weaponForce);
+    let forceDamage = 0
+
+    if (weaponForce <= armourDefence) {
+        forceDamage = weaponDamage * Math.exp(-forceFailFallCoef * defenceStack * (armourDefence - weaponForce))
+    }
+    else {
+        forceDamage = weaponDamage * (weaponForce / (armourDefence || 1)**1.005)
+    }
+    return forceDamage
+}
+
+export function Clash(attacker: Entity, defender: Entity) {
+    // console.log(`\tClash: ${attacker.base.username} => ${defender.base.username}`);
+
+    const weaponPierce = attacker.equippedWeapon.pierce;
+    const weaponForce = attacker.equippedWeapon.force;
+    const armourArmour = defender.equippedArmour.armour;
+    const armourDefence = defender.equippedArmour.defence;
+    const weaponDamage = calculateWeaponDamage(attacker);
+    let pierceDamage = calculatePierceDamage(attacker, defender, weaponDamage);
+    let forceDamage = calculateForceDamage(attacker, defender, weaponDamage);
+
+    return {
+        weaponPierce,
+        weaponForce,
+        armourArmour,
+        armourDefence,
+
+        pierceDamage,
+        forceDamage,
+        totalDamage: pierceDamage + forceDamage,
+    }
 }
 
 export function GetAdditionalOrgansation(entity: Omit<Character, 'authorised' | 'description'>): number {
@@ -69,11 +126,14 @@ export function GetEmptyArmour(): Armour {
 
 export function GetEmptyWeapon(): Weapon {
     return {
+        pierce: 0,
         force: 0,
         name: 'None',
         type: 'physical',
-        pierce: 0,
-        multipliers: [],
+        multipliers: [
+            [Reality.Force, 'add', 1],
+            [Reality.Precision, 'multiply', .1]
+        ],
     }
 }
 
@@ -81,6 +141,7 @@ export function GetEntityConstance(entity: Character, player?: User | UserData):
     const { name, str, dex, spd, siz, int, spr, fai, end, cha, beu, wil } = entity;
     return {
         id: player?.id,
+        owner: player?.id,
         username: player?.username,
         name: name,
         str: str,
@@ -132,5 +193,29 @@ export function DecipherMultiplier(e: Entity, x: WeaponMultiplier): number {
     }
     else {
         return GetRealityValue(e, i as Reality) * DecipherMultiplier(e, x[2]);
+    }
+}
+
+export function getKeyFromEnumValue(enumObj: any, value: any): string | undefined {
+    return Object.keys(enumObj).find(key => enumObj[key] === value);
+}
+
+export function stringifyAbilityList(abilityList: AbilityInstance[]) {
+    return abilityList.map((a, i) => {
+        const f = i === 0 ? capitalize : (x: string) => x;
+        return `${f('use')} \`${getKeyFromEnumValue(AbilityName, a.name)}\` at [**${a.targetting}**]`
+    }).join(`, then\n`);
+}
+
+export function getDefaultAbility(): Ability {
+    return {
+        trigger: AbilityTrigger.Immediate,
+        name: AbilityName.None,
+        desc: null,
+        targetting: 'enemy',
+        AOE: 1,
+        castLocation: ['front'],
+        targetLocation: ['front'],
+        timeRequired: 5,
     }
 }

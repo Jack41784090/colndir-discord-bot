@@ -174,7 +174,10 @@ export async function getVideoInfo(youtubeLink: string) {
     if (!match) return null;
     
     try {
-        const videoInfo = ytdl(`https://www.youtube.com/watch?v=${match}`);
+        const videoInfo = ytdl(`https://www.youtube.com/watch?v=${match}`, {
+            filter: 'audioandvideo',
+            quality: 'highest',
+        });
         return videoInfo;
     }
     catch(e) {
@@ -195,24 +198,119 @@ export async function TestFunction() {
     //     pvp: true
     // })
     
-    // const a1 = new AbilityInstance({
-    //     associatedBattle: b,
-    //     trigger: AbilityTrigger.StartRound,
-    // });
-    // const a2 = new AbilityInstance({
-    //     associatedBattle: b,
-    //     trigger: AbilityTrigger.EndRound,
-    // });
+    // // const a1 = new AbilityInstance({
+    // //     associatedBattle: b,
+    // //     name: AbilityName.Stab,
+    // //     trigger: AbilityTrigger.StartSkirmish,
+    // // });
+    // // const a2 = new AbilityInstance({
+    // //     associatedBattle: b,
+    // //     name: AbilityName.Slash,
+    // //     trigger: AbilityTrigger.EndSkirmish,
+    // // });
     // b.spawnUsers();
-    // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
 
-    // const itr = await getVideoInfo('https://www.youtube.com/watch?v=nmG2gtmUDvM');
-    // if (itr) {
-    //     const channel = await bot.channels.fetch('1232126725039587389') as TextBasedChannel;
-    //     channel.send({
-    //         files: [ { attachment: itr, name: 'video.mp4' } ],
-    //     })
+    // for (let i = 0; i < 40; i++) {
+    //     const pierce = i;
+    //     const armor = 20
+    //     const attacker = b.playerEntities[0];
+    //     const defender = b.playerEntities[1];
+    //     attacker.equippedWeapon.force = pierce;
+    //     defender.equippedArmour.defence = armor;
+    //     const pd = calculateForceDamage(attacker, defender, 100);
+    //     console.log(`[f: ${pierce}, d: ${armor}] = ${pd}`);
     // }
+
+    // const startPierceFail = 0.057
+    // const startForceFail = 0.007
+    // const tick = 0.001
+    // const totalResult: Array<[[number, number], number]> = [];
+    // for (let o = -2000; o < 2000; o++) {
+    //     for (let oi = -2000; oi < 2000; oi++) {
+    //         const rs = [];
+    //         for (let i = 0; i < 10; i++) {
+    //             for (let x = 0; x < 10; x++) {
+    //                 const p1 = b.playerEntities[0];
+    //                 const p2 = b.playerEntities[1];
+    
+    //                 p1.equippedWeapon.force = i;
+    //                 p1.equippedWeapon.pierce = 10 - i;
+    //                 p2.equippedArmour.defence = x;
+    //                 p2.equippedArmour.armour = 10 - x;
+    //                 // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+    //                 const result = Clash(b.playerEntities[0], b.playerEntities[1], startPierceFail + o * tick, startForceFail + oi * tick);
+    //                 rs.push(result)
+    //             }
+    //         }
+    
+    //         rs.sort((a, b) => a.totalDamage - b.totalDamage);
+    //         const totalDamage = rs.map(r => r.totalDamage);
+    //         const normalDistribution = std(totalDamage);
+    //         // console.log(normalDistribution)
+    //         totalResult.push([[startPierceFail + o * tick, startForceFail + o * tick] as [number,number], normalDistribution as unknown as number]);
+    //     }
+    // }
+
+    // totalResult.sort((a, b) => a[1] - b[1]);
+    // const mostOptimal = totalResult[0];
+    // const leastOptimal = totalResult[totalResult.length - 1];
+    // console.log(totalResult[0], totalResult[totalResult.length - 1]);
+    // const rs = [];
+    // for (let i = 0; i < 10; i++) {
+    //     for (let x = 0; x < 10; x++) {
+    //         const p1 = b.playerEntities[0];
+    //         const p2 = b.playerEntities[1];
+
+    //         p1.equippedWeapon.force = i;
+    //         p1.equippedWeapon.pierce = 10 - i;
+    //         p2.equippedArmour.defence = x;
+    //         p2.equippedArmour.armour = 10 - x;
+    //         // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+    //         const result = Clash(b.playerEntities[0], b.playerEntities[1], leastOptimal[0][0], leastOptimal[0][1]);
+    //         rs.push(result)
+    //     }
+    // }
+
+    // rs.sort((a, b) => a.totalDamage - b.totalDamage);
+    // rs.forEach(r => {
+    //     const { totalDamage, pierceDamage, forceDamage, weaponPierce, weaponForce, armourArmour, armourDefence } = r;
+    //     console.log(`[f: ${weaponForce}, d: ${armourDefence}] = ${forceDamage}`, `[p: ${weaponPierce}, a: ${armourArmour}] = ${pierceDamage}`, `=== ${totalDamage}`);
+    // })
+
+    // const rs = [];
+
+    // for (let i = 0; i < 10; i++) {
+    //     for (let x = 0; x < 10; x++) {
+    //         const p1 = b.playerEntities[0];
+    //         const p2 = b.playerEntities[1];
+
+    //         p1.equippedWeapon.force = i;
+    //         p1.equippedWeapon.pierce = 10 - i;
+    //         p2.equippedArmour.defence = x;
+    //         p2.equippedArmour.armour = 10 - x;
+    //         // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+    //         const result = Clash(b.playerEntities[0], b.playerEntities[1]);
+    //         rs.push(result)
+    //     }
+    // }
+
+    // // for (let i = 0; i < 20; i++) {
+    // //     const p1 = b.playerEntities[0];
+    // //     const p2 = b.playerEntities[1];
+
+    // //     p1.equippedWeapon.pierce = 5;
+    // //     p2.equippedArmour.armour = i;
+    // //     // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
+    // //     const { totalDamage, pierceDamage, forceDamage } = Clash(b.playerEntities[0], b.playerEntities[1]);
+    // //     console.log(`[p: 0, a: ${i}] = ${pierceDamage}`);
+    // // }
+    // rs.sort((a, b) => a.totalDamage - b.totalDamage);
+    // rs.forEach(r => {
+    //     const { totalDamage, pierceDamage, forceDamage, weaponPierce, weaponForce, armourArmour, armourDefence } = r;
+    //     console.log(`[f: ${weaponForce}, d: ${armourDefence}] = ${forceDamage}`, `[p: ${weaponPierce}, a: ${armourArmour}] = ${pierceDamage}`, `=== ${totalDamage}`);
+    // })
+
+
 }
 
 export function isSubset<T>(superset: T[], subset: T[]): boolean {

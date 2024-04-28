@@ -1,3 +1,4 @@
+import { AbilityInstance } from '@classes/Ability';
 import { EntityInstance } from '@classes/Battle';
 import charactersJSON from '@data/characters.json';
 import { TextBasedChannel, User } from 'discord.js';
@@ -58,9 +59,19 @@ export interface Entity {
         isPvp: boolean,
     }
 }
+
+export enum EntityStatusApplyType {
+    persistent = 'persistent',
+    stackable = 'stackable',
+}
+export interface EntityStatusSource {
+    from: EntityInstance | AbilityInstance,
+}
 export type EntityStatus = {
+    source: EntityStatusSource,
     type: EntityStatusType,
-    name: EntityStats,
+    applyType: EntityStatusApplyType,
+    name?: EntityStats,
     value: number,
     duration: number,
 }
@@ -68,6 +79,7 @@ export enum EntityStatusType {
     IncreaseStat = 'IncreaseStat',
     DecreaseStat = 'DecreaseStat',
     MultiplyStat = 'MultiplyStat',
+    Bleed = 'Bleed',
 }
 
 export interface BattleConfig {
@@ -78,7 +90,10 @@ export interface BattleConfig {
 }
 export type BattleField = Map<Location, EntityInstance[]>;
 export type Location = 'front' | 'back' | 'front-support' | 'back-support'
-export type BotType = 'naught' | 'approach_attack' | 'passive_supportive'
+export enum BotType {
+    Player = 'player',
+    Enemy = 'enemy',
+}
 export type Team = 'player' | 'enemy'
 export type Character = typeof charactersJSON.Dummy
 export type PureCharacter = Omit<Character, 'name' | 'description' | 'authorised'>

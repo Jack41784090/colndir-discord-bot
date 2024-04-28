@@ -18,6 +18,8 @@
     "firebase": "^10.11.0",
     "firebase-admin": "^12.1.0",
     "googleapis": "^134.0.0",
+    "jstat": "^1.9.6",
+    "mathjs": "^12.4.2",
     "openai": "^4.38.3",
     "ytdl-core": "^4.11.5"
   },

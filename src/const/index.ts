@@ -17,3 +17,23 @@ export const LOGCO_STR_HP = 8.3;
 export const XCO_STR_HP = 0.6;
 export const LOGCO_SIZ_HP = 12;
 export const XCO_SIZ_HP = 0.7;
+
+export const pierceFailFallCoef = 0.057
+export const forceFailFallCoef = 0.007
+
+export const INTERFACE_PERSIST_TIME = 15
+export const INTERFACE_REFRESH_TIME = 5
+
+export enum Emoji {
+    TARGET = '🎯',
+    SHIELD = '🛡️',
+    SWORD = '⚔️',
+    HEART = '❤️',
+    CLOCK = '⏰',
+    BOMB = '💣',
+    FIRE = '🔥',
+    ICE = '❄️',
+    WIND = '🌀',
+    EARTH = '🌍',
+    RED_SIGN = '🚫',
+}
