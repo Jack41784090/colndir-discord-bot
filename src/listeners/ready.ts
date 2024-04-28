@@ -1,5 +1,5 @@
 import { HOUR } from '@constants';
-import { TestFunction, updateCharacterPost } from '@functions';
+import { updateCharacterPost } from '@functions';
 import { Events, Listener } from '@sapphire/framework';
 import { ChannelType, ForumChannel, type Client } from 'discord.js';
 import bot from '../bot';
@@ -23,7 +23,11 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
                     if (!channels_collection) continue;
                     const lores = Array
                         .from(channels_collection.values())
-                        .filter(c => c && c.type === ChannelType.GuildForum && c.name.toLowerCase() === 'lore') as ForumChannel[];
+                        .filter(c => c &&
+                            c.type === ChannelType.GuildForum &&
+                            c.parent &&
+                            c.availableTags.filter(t => t.name.toLowerCase() === ('major lore') || t.name.toLowerCase() === ('minor lore')).length === 2
+                        ) as ForumChannel[];
                     loreChannels.push(...lores)
                 }
                 return loreChannels;
@@ -99,7 +103,6 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
     public async run(client: Client) {
         const { username, id } = client.user!;
         this.container.logger.info(`Successfully logged in as ${username} (${id})`);
-        TestFunction();
         // begin the lore channel auto-org system
         setInterval(async () => {
             this.loreChannelsUpdate();
