@@ -1,7 +1,7 @@
 import { AbilityInstance } from '@classes/Ability';
-import { EntityInstance } from '@classes/Battle';
+import { Entity } from '@classes/Battle';
 import charactersJSON from '@data/characters.json';
-import { TextBasedChannel, User } from 'discord.js';
+import { Snowflake, TextBasedChannel, User } from 'discord.js';
 
 export type WeaponType = 'physical' | 'magical'
 export type WeaponMultiplierAction = 'add' | 'multiply';
@@ -34,13 +34,14 @@ export interface Armour {
 // cha: number,    // Charisma: ability to influence others
 // beu: number,    // Beauty: physical appearance
 export interface EntityConstance extends PureCharacter {
-    owner?: string,
     username?: string,
     id?: string,
     iconURL?: string,
     name: string,
 }
-export interface Entity {
+export type EntityInitRequirements = Partial<iEntity> & { base: EntityConstance, team: string }
+export interface iEntity {
+    team: string,
     base: EntityConstance,
     name: string,
     warSupport: number,
@@ -53,11 +54,9 @@ export interface Entity {
 
     equippedWeapon: Weapon,
     equippedArmour: Armour,
-    id: {
-        botType: BotType,
-        isPlayer: boolean,
-        isPvp: boolean,
-    }
+    botType: BotType,
+    isPlayer: boolean,
+    isPvp: boolean,
 }
 
 export enum EntityStatusApplyType {
@@ -65,7 +64,7 @@ export enum EntityStatusApplyType {
     stackable = 'stackable',
 }
 export interface EntityStatusSource {
-    from: EntityInstance | AbilityInstance,
+    from: Entity | AbilityInstance,
 }
 export type EntityStatus = {
     source: EntityStatusSource,
@@ -96,16 +95,14 @@ export interface TimeSlot {
 export interface BattleConfig {
     channel: TextBasedChannel,
     users: User[];
-    teamMapping: Record<Team, User[]>;
-    pvp: boolean;
+    teamMapping: Record<Snowflake, string>;
 }
-export type BattleField = Map<Location, EntityInstance[]>;
+export type BattleField = Map<Location, Entity[]>;
 export type Location = 'front' | 'back' | 'front-support' | 'back-support'
 export enum BotType {
     Player = 'player',
     Enemy = 'enemy',
 }
-export type Team = 'player' | 'enemy'
 export type Character = typeof charactersJSON.Dummy
 export type PureCharacter = Omit<Character, 'name' | 'description' | 'authorised'>
 export type ClashResultFate = "Miss" | "Hit" | "CRIT"

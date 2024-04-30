@@ -313,8 +313,24 @@ export async function TestFunction() {
 
 }
 
-export function isSubset<T>(superset: T[], subset: T[]): boolean {
+export function isSubset<T>(_superset: Set<T>, _subset: Set<T>): boolean;
+export function isSubset<T>(_superset: T[], _subset: T[]): boolean
+export function isSubset<T>(_superset: T[] | Set<T>, _subset: T[] | Set<T>): boolean {
+    const subset = Array.isArray(_subset)? _subset: Array.from(_subset);
+    const superset = Array.isArray(_superset)? _superset: Array.from(_superset);
     return subset.every(value => superset.includes(value));
+}
+
+export function getLoadingEmbed() {
+    const url = "https://cdn.discordapp.com/attachments/571180142500511745/829109314668724234/ajax-loader.gif";
+    const loadingEmbed = new EmbedBuilder()
+        .setAuthor({
+            name: "Wait a while.",
+            iconURL: url,
+            url: url,
+        })
+        .setTitle("Now Loading...");
+    return loadingEmbed;
 }
 
 export * from './add-to-team';

@@ -1,9 +1,9 @@
 import { AbilityInstance } from "@classes/Ability";
-import { EntityInstance } from "@classes/Battle";
+import { Entity, Team } from "@classes/Battle";
 import { LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP, forceFailFallCoef, pierceFailFallCoef } from "@constants";
-import { Ability, AbilityName, AbilityTrigger, Armour, Character, Entity, EntityConstance, Reality, TimeSlotState, UserData, Weapon, WeaponMultiplier } from "@ctypes";
+import { Ability, AbilityName, AbilityTrigger, Armour, Character, EntityConstance, EntityInitRequirements, Reality, TimeSlotState, UserData, Weapon, WeaponMultiplier, iEntity } from "@ctypes";
 import { roundToDecimalPlace } from "@functions";
-import { Client, CollectedInteraction, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, CollectedInteraction, EmbedBuilder, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
 
 export function setUpInteractionCollect(
     client: Client<true>, cb: (itr: Interaction) => void,
@@ -15,7 +15,7 @@ export function setUpInteractionCollect(
     return interCollector;
 }
 
-export function calculateWeaponDamage(attacker: Entity): number {
+export function calculateWeaponDamage(attacker: iEntity): number {
     return attacker.equippedWeapon.multipliers.reduce((acc: number, [stat, action, multiplier]) => {
         // console.log(`\t\t${stat} ${action} ${multiplier}: ${acc} ${action === 'add' ? `+ ${DecipherMultiplier(attacker, [stat, action, multiplier])}` : `* ${1 + DecipherMultiplier(attacker, [stat, action, multiplier])}`}`);
         switch (action) {
@@ -29,7 +29,7 @@ export function calculateWeaponDamage(attacker: Entity): number {
     }, 0);
 }
 
-export function calculatePierceDamage(attacker: Entity, defender: Entity, weaponDamage = calculateWeaponDamage(attacker)): number {
+export function calculatePierceDamage(attacker: iEntity, defender: iEntity, weaponDamage = calculateWeaponDamage(attacker)): number {
     // Pierce damage calculation
     // if (armourArmour <= weaponPierce) {
     //     pierceDamage *= (1 + Math.abs(armourArmour - weaponPierce) * 0.1);
@@ -56,7 +56,7 @@ export function calculatePierceDamage(attacker: Entity, defender: Entity, weapon
     return pierceDamage
 }
 
-export function calculateForceDamage(attacker: Entity, defender: Entity, weaponDamage = calculateWeaponDamage(attacker)): number {
+export function calculateForceDamage(attacker: iEntity, defender: iEntity, weaponDamage = calculateWeaponDamage(attacker)): number {
     const weaponPierce = attacker.equippedWeapon.pierce;
     const weaponForce = attacker.equippedWeapon.force;
     const armourDefence = defender.equippedArmour.defence;
@@ -72,7 +72,7 @@ export function calculateForceDamage(attacker: Entity, defender: Entity, weaponD
     return forceDamage
 }
 
-export function Clash(attacker: Entity, defender: Entity) {
+export function Clash(attacker: iEntity, defender: iEntity) {
     // console.log(`\tClash: ${attacker.base.username} => ${defender.base.username}`);
 
     const weaponPierce = attacker.equippedWeapon.pierce;
@@ -141,7 +141,6 @@ export function GetEntityConstance(entity: Character, player?: User | UserData):
     const { name, str, dex, spd, siz, int, spr, fai, end, cha, beu, wil } = entity;
     return {
         id: player?.id,
-        owner: player?.id,
         username: player?.username,
         name: name,
         str: str,
@@ -158,11 +157,7 @@ export function GetEntityConstance(entity: Character, player?: User | UserData):
     }
 }
 
-export function GetEntity(base: EntityConstance, options: Partial<Entity> = {}): EntityInstance {
-    return new EntityInstance({ base: base, ...options });
-}
-
-export function GetRealityValue(entity: Entity, reality: Reality): number {
+export function GetRealityValue(entity: iEntity, reality: Reality): number {
     const { str, siz, spd, dex, int, spr, fai, wil } = entity.base;
     switch (reality) {
         case Reality.Force:
@@ -186,7 +181,7 @@ export function GetRealityValue(entity: Entity, reality: Reality): number {
     }
 }
 
-export function DecipherMultiplier(e: Entity, x: WeaponMultiplier): number {
+export function DecipherMultiplier(e: iEntity, x: WeaponMultiplier): number {
     const i = x[0]
     if (typeof x[2] === 'number') {
         return GetRealityValue(e, i as Reality) * x[2];
@@ -195,6 +190,16 @@ export function DecipherMultiplier(e: Entity, x: WeaponMultiplier): number {
         return GetRealityValue(e, i as Reality) * DecipherMultiplier(e, x[2]);
     }
 }
+
+
+export function syncVirtualandActual(virtual: iEntity, actual: Entity) {
+    actual.HP = virtual.HP;
+    actual.stamina = virtual.stamina;
+    actual.org = virtual.org;
+    actual.warSupport = virtual.warSupport;
+    actual.status = virtual.status;
+}
+
 
 export function getKeyFromEnumValue(enumObj: any, value: any): string | undefined {
     return Object.keys(enumObj).find(key => enumObj[key] === value);

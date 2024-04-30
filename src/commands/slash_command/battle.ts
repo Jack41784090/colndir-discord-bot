@@ -23,15 +23,14 @@ export class StartBattleCommand extends Command {
         await interaction.deleteReply();
         const ike = interaction.user;
         const merc = await bot.users.fetch('262871357455466496')
-        const b = Battle.Create({
+        const b = await Battle.Create({
             channel: interaction.channel!,
             users: [merc, ike],
             teamMapping: {
-                'enemy': [merc],
-                'player': [ike]
-            },
-            pvp: true
-        })
-        ;(await b).startRound()
+                [ike.id]: `1`,
+                [merc.id]: `2`
+            }
+        });
+        b.begin();
     }
 }

@@ -32,12 +32,10 @@ export class StartBattleHandler extends InteractionHandler {
             channel: interaction.channel!,
             users: [...greenTeam, ...redTeam],
             teamMapping: {
-                'enemy': redTeam,
-                'player': greenTeam
-            },
-            pvp: true
+                [greenTeam[0].id]: '1',
+                [redTeam[0].id]: '2'
+            }
         })
-
-        await battle.startRound()
+        battle.begin()
     }
 }

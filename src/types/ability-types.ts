@@ -1,4 +1,4 @@
-import { Battle, EntityInstance } from '@classes/Battle';
+import { Battle, Entity } from '@classes/Battle';
 import { EntityStats, Location, WeaponMultiplier, WeaponMultiplierAction } from './battle-types';
 
 export type AbilityMultiplier = [EntityStats, WeaponMultiplierAction, WeaponMultiplier];
@@ -20,8 +20,8 @@ export enum AbilityName {
 }
 
 export interface Ability {
-    initiator?: EntityInstance;
-    target?: EntityInstance;
+    initiator?: Entity;
+    target?: Entity;
     associatedBattle?: Battle;
 
     trigger: AbilityTrigger;
