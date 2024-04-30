@@ -21,6 +21,8 @@ export const XCO_SIZ_HP = 0.7;
 export const pierceFailFallCoef = 0.057
 export const forceFailFallCoef = 0.007
 
+export const FORESEE = 4;
+
 export const INTERFACE_PERSIST_TIME = 15
 export const INTERFACE_REFRESH_TIME = 5
 

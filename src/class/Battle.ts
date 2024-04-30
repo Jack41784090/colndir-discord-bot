@@ -1,9 +1,9 @@
 import bot from "@bot";
 import { Emoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
-import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BotType, Entity, EntityConstance, EntityStatus, EntityStatusApplyType, EntityStatusType, Location, Team, UserData, Weapon } from "@ctypes";
+import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BotType, Entity, EntityConstance, EntityStatus, EntityStatusApplyType, EntityStatusType, Location, Team, TimeSlot, TimeSlotState, UserData, Weapon } from "@ctypes";
 import characterJSON from "@data/characters.json";
-import { Clash, GetCombatCharacter, GetEmptyArmour, GetEmptyWeapon, GetEntity, GetEntityConstance, GetUserData, NewObject, capitalize, getErrorEmbed, setUpInteractionCollect, stringifyAbilityList } from "@functions";
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, EmbedBuilder, InteractionCollector, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
+import { Clash, GetCombatCharacter, GetEmptyArmour, GetEmptyWeapon, GetEntity, GetEntityConstance, GetUserData, NewObject, capitalize, getAbilityState, getErrorEmbed, getKeyFromEnumValue, isSubset, setUpInteractionCollect, stringifyAbility } from "@functions";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, Collection, EmbedBuilder, InteractionCollector, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
 import { AbilityInstance } from "./Ability";
 
@@ -130,14 +130,15 @@ export class Battle extends EventEmitter {
         'enemy': [],
     }
 
-    // gamemode
-    pvp: boolean;
+    // 
+    playerTimeslots = new Collection<string, TimeSlot[]>();
+    time: number = -1;
+    timeslots: TimeSlot[] = []
 
     private constructor(c: BattleConfig, party: UserData[]) {
         super();
         this.playerEntities = []
         this.players = party;
-        this.pvp = c.pvp;
         this.channel = c.channel;
         this.on(AbilityTrigger.Proc, (ability: AbilityInstance) => {
             console.log(`Ability: ${ability.name} procceeded`);
@@ -174,7 +175,7 @@ export class Battle extends EventEmitter {
      * @param defender 
      * @returns 
      */
-    skirmish(attacker: EntityInstance, attackerSequence: AbilityInstance[], defender: EntityInstance, defenderSequence: AbilityInstance[]) {
+    skirmish(attacker: EntityInstance, attackerSequence: AbilityInstance, defender: EntityInstance, defenderSequence: AbilityInstance) {
         console.log(`Skirmish: ${attacker.base.username} => ${defender.base.username}`);
 
         const roundAttacker = NewObject(attacker) as Entity;
@@ -208,12 +209,14 @@ export class Battle extends EventEmitter {
         actual.status = virtual.status;
     }
 
-    private getTeamStatusString(team: Team, ready: string[]) {
+    private getTeamStatusString(team: Team) {
         const teamHeader = `## Team ${capitalize(team)}\n`
         const individualStatus = this.teamMapping[team].map(u => {
             const e = this.playerEntities.find(e => e.base.username === u.username);
             if (e) {
-                return `\n${ready.includes(e.base.id || '') ? '✅' : '❌'} **${e.name}** / ${this.userCache[e.base.id??''] || `\`${e.base.username}\``} [${e.loc}]`
+                const entityState = this.getEntityState(e.base.id || '');
+                const entityIsReady = entityState !== TimeSlotState.Idle && entityState !== TimeSlotState.Past;
+                return `\n${entityIsReady ? '✅' : '❌'} **${e.name}** / ${this.userCache[e.base.id??''] || `\`${e.base.username}\``} [${e.loc}]`
             }
             else return '';
         }).join('');
@@ -240,20 +243,40 @@ export class Battle extends EventEmitter {
         console.log(this.playerEntities.map(e => `${e.name} / ${e.base.username} [${e.loc}]`));
     }
 
-    async updateBattleUI(ready: string[] = []) {
-        if (!this.battleUI) {
-            this.battleUI = await this.channel.send({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle("Loading Battle...")
-                ]
-            });
+    async updateBattleUI() {
+        if (!this.battleUI ) {
+            return;
         }
 
         this.battleUI = await this.battleUI!.edit({
             embeds: [
                 new EmbedBuilder()
-                    .setDescription(`${this.getTeamStatusString('player', ready)}\n\n${this.getTeamStatusString('enemy', ready)}`)
+                    .setDescription(`${this.getTeamStatusString('player')}\n\n${this.getTeamStatusString('enemy')}`)
+            ],
+            components: [
+                new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('activate-attack-interface')
+                            .setStyle(ButtonStyle.Primary)
+                            .setLabel('⚔️')
+                    )
+            ]
+        }).catch(console.error) ?? null;
+        return this.battleUI;
+    }
+
+    getAbilityAtCurrentTime(name: AbilityName) {
+        return new AbilityInstance({ associatedBattle: this, name, begin: this.time })
+    }
+
+    async requestAction(userID: string[]): Promise<unknown> {
+        console.log(`|=> Requesting action from ${userID.join(', ')}`)
+
+        this.battleUI = await this.channel.send({
+            embeds: [
+                new EmbedBuilder()
+                    .setDescription(`${this.getTeamStatusString('player')}\n\n${this.getTeamStatusString('enemy')}`)
             ],
             components: [
                 new ActionRowBuilder<ButtonBuilder>()
@@ -265,25 +288,9 @@ export class Battle extends EventEmitter {
                     )
             ]
         });
-        return this.battleUI;
-    }
-
-    async startRound() {
-        if (!this.battleUI) {
-            this.battleUI = await this.channel.send({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle("Loading Battle...")
-                ]
-            });
-        }
-        
-        this.spawnUsers();
-        this.updateBattleUI();
 
         // 1. Click the sword button to activate the attack interface.
         // Each player can only activate the attack interface once, but can come back to it once they end turn.
-        const selectedActionsMap = new Map<string, AbilityInstance[]>();
         const turnEnded: string[] = [];
         const activatedList: string[] = [];
         const enter = async (u: User) => {
@@ -293,7 +300,7 @@ export class Battle extends EventEmitter {
             if (i !== -1) {
                 turnEnded.splice(i, 1);
             }
-            await this.updateBattleUI(turnEnded)
+            await this.updateBattleUI()
             // console.log(activatedList, turnEnded.map(u => u.id));
         }
         const exit = async (u: User) => {
@@ -303,21 +310,32 @@ export class Battle extends EventEmitter {
             if (i !== -1) {
                 activatedList.splice(i, 1);
             }
-            await this.updateBattleUI(turnEnded);
+            await this.updateBattleUI();
             // console.log(activatedList, turnEnded.map(u => u.id));
         }
+
         const attackInterfaceCollector = setUpInteractionCollect(bot.user?.client!, async interface_itr => {
             if (interface_itr.isButton() && interface_itr.customId === 'activate-attack-interface') {
-                const notAPlayer = !this.players.map(p => p.id).includes(interface_itr.user.id);
+                // 1. Guard against illegal entrance to the attack interface
+                const notAPlayer = !this.players.find(p => p.id === interface_itr.user.id);
                 const alreadyActivated = activatedList.includes(interface_itr.user.id);
-                if (notAPlayer) {
-                    await interface_itr.reply({ embeds: [getErrorEmbed('You are not a player in this battle.')], ephemeral: true });
+                const readied = !userID.includes(interface_itr.user.id);
+                if (notAPlayer || alreadyActivated || readied) {
+                    await interface_itr.reply({
+                        embeds: [
+                            getErrorEmbed(`You cannot make a selection. Reason: ${
+                                notAPlayer ? 'You are not a player.' :
+                                alreadyActivated ? 'You have already activated the attack interface.' :
+                                readied ? `You are ready for action. Ability is \`${this.playerTimeslots.get(interface_itr.user.id)?.[0]?.ability.name}\`.`:
+                                'Unknown reason'
+                            }`)
+                        ],
+                        ephemeral: true
+                    });
                     return;
+                } else {
+                    await enter(interface_itr.user);
                 }
-                if (alreadyActivated) {
-                    return;
-                }
-                else await enter(interface_itr.user);
 
                 const interface_res = await interface_itr.deferReply({ ephemeral: true });
 
@@ -328,7 +346,7 @@ export class Battle extends EventEmitter {
                         // console.log('Closing interface')
                         listener.stop();
                         ended = true;
-                        selectedActionsMap.set(interface_itr.user.id, abilityList);
+                        this.queueUpAbilities(interface_itr.user.id, selectedAbility ?? new AbilityInstance({ associatedBattle: this, name: AbilityName.Idle }));
                         exit(interface_itr.user).then(() => {
                             resolve(void 0);
                         });
@@ -338,7 +356,7 @@ export class Battle extends EventEmitter {
                             embeds: [
                                 new EmbedBuilder()
                                     .setTitle("Attack Interface")
-                                    .setDescription(`${Emoji.TARGET}: ${target?.name || 'None'}\n${Emoji.SWORD}: ${stringifyAbilityList(abilityList) || 'None'}`)
+                                    .setDescription(`${Emoji.TARGET}: ${target?.name || 'None'}\n${Emoji.SWORD}: ${selectedAbility ? stringifyAbility(selectedAbility) : 'None'}`)
                             ],
                             components: [
                                 returnButtonActionRow(),
@@ -428,10 +446,10 @@ export class Battle extends EventEmitter {
                         const selected = itr.values[0];
                         if (selected) {
                             if (mode === 'select-ability') {
-                                const ability = new AbilityInstance({ associatedBattle: this, name: selected as AbilityName });
+                                const ability = this.getAbilityAtCurrentTime(selected as AbilityName);
                                 if (ability) {
                                     mode = 'select-target';
-                                    abilityList.push(ability);
+                                    selectedAbility = ability;
                                 }
                             }
                             else {
@@ -461,7 +479,7 @@ export class Battle extends EventEmitter {
                     const switchToSelectTargetID = `switch-to-select-target_${interface_itr.user.id}`;
 
                     let target: EntityInstance | null = null;
-                    const abilityList: AbilityInstance[] = [];
+                    let selectedAbility: AbilityInstance | null = null;
                     let ended = false;
                     let timeoutCount = 0;
                     let mode: 'select-ability' | 'select-target' = 'select-target';
@@ -477,26 +495,93 @@ export class Battle extends EventEmitter {
             }
         }, { message: this.battleUI });
 
-
         // 3. Once all players have ended their turn, the round will start.
-        await new Promise((resolve) => {
+        return await new Promise((resolve) => {
             const interval = setInterval(() => {
-                // if (isSubset(this.players.map(p => p.id), turnEnded)) {
-                if (turnEnded.length === 1) {
+                if (isSubset(turnEnded, userID)) {
+                    console.log('||=> All players have ended their turn');
                     clearInterval(interval);
+                    this.battleUI?.delete()
+                    this.battleUI = null;
                     resolve(void 0);
                 }
             }, 1000);
         });
+    }
 
-        // 4. The round will start, and the skirmish will begin.
-        const p1 = selectedActionsMap.get(this.playerEntities[0].base.id!) || [];
-        const p2 = selectedActionsMap.get(this.playerEntities[1].base.id!) || [];
-        p1.forEach(a => a.confirm());
-        p2.forEach(a => a.confirm());
-        this.skirmish(
-            this.playerEntities[0], p1,
-            this.playerEntities[1], p2,
-        );
+    getEntityState(userid: string) {
+        const ts = this.playerTimeslots.get(userid)?.[0];
+        const con = ts ? getAbilityState(ts.ability, this.time) : TimeSlotState.Idle
+        console.log(`@${this.time}: ${userid} @ ${con} /with ${ts?.ability.name}`)
+        return con;
+    }
+
+    ensureTimeSlot(userId: string): TimeSlot[] {
+        if (!this.playerTimeslots.has(userId)) {
+            this.playerTimeslots.set(userId, []);
+        }
+        return this.playerTimeslots.get(userId)!;
+    }
+
+    queueUpAbilities(userid: string, ...ability: AbilityInstance[]) {
+        this.ensureTimeSlot(userid).push(...ability.map(a => {
+            return {
+                ability: a,
+                time: a.begin,
+            }
+        }));
+    }
+
+    ensureValidTimelineAbilities() {
+        this.playerTimeslots = this.playerTimeslots.mapValues(v => v.sort((a, b) => a.time - b.time));
+        for (const playerID of this.playerTimeslots.keys()) {
+            while (this.getEntityState(playerID) === TimeSlotState.Past) {
+                this.playerTimeslots.get(playerID)!.shift();
+            }
+        }
+        console.log(this.playerTimeslots.map((v, k) => `${k}: ${v.map(a => `${a.ability.name} @ ${a.time}`).join(', ')}`));
+    }
+
+    advanceTime() {
+        this.time++;
+        this.ensureValidTimelineAbilities();
+    }
+
+    async startRound() {
+        this.advanceTime();
+        console.log(`Round ${this.time} started`);
+        
+        this.spawnUsers();
+        await this.updateBattleUI();
+
+        const idleUsers = this.players.map(p => p.id).filter(id => this.getEntityState(id) === TimeSlotState.Idle);
+        if (idleUsers.length > 0) {
+            await this.requestAction(idleUsers);
+        }
+
+        for (const [id, timeslots] of this.playerTimeslots) {
+            const e = this.playerEntities.find(e => e.base.id === id);
+            const ts = timeslots[0];
+            const target = this.playerEntities.find(e => e.base.id === ts.ability.target?.id);
+            const state = getAbilityState(ts.ability, this.time);
+
+            await this.channel.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle(
+                            `${Emoji.SWORD} ${e?.name} used ${getKeyFromEnumValue(AbilityName, ts.ability.name)} on ${target?.name} ${
+                                state === TimeSlotState.Windup ? 'and was winding up the attack...' :
+                                state === TimeSlotState.Swing ? 'and was swinging!' :
+                                state === TimeSlotState.Recovery ? 'and was recovering from the attack.' :
+                                ''
+                            }`
+                        )
+                ]
+            })
+        }
+        
+        setTimeout(() => {
+            this.startRound();
+        }, 1000);
     }
 }

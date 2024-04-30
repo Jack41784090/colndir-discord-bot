@@ -1,8 +1,8 @@
 import { AbilityInstance } from "@classes/Ability";
 import { EntityInstance } from "@classes/Battle";
 import { LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP, forceFailFallCoef, pierceFailFallCoef } from "@constants";
-import { Ability, AbilityName, AbilityTrigger, Armour, Character, Entity, EntityConstance, Reality, UserData, Weapon, WeaponMultiplier } from "@ctypes";
-import { capitalize, roundToDecimalPlace } from "@functions";
+import { Ability, AbilityName, AbilityTrigger, Armour, Character, Entity, EntityConstance, Reality, TimeSlotState, UserData, Weapon, WeaponMultiplier } from "@ctypes";
+import { roundToDecimalPlace } from "@functions";
 import { Client, CollectedInteraction, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
 
 export function setUpInteractionCollect(
@@ -200,22 +200,32 @@ export function getKeyFromEnumValue(enumObj: any, value: any): string | undefine
     return Object.keys(enumObj).find(key => enumObj[key] === value);
 }
 
-export function stringifyAbilityList(abilityList: AbilityInstance[]) {
-    return abilityList.map((a, i) => {
-        const f = i === 0 ? capitalize : (x: string) => x;
-        return `${f('use')} \`${getKeyFromEnumValue(AbilityName, a.name)}\` at [**${a.targetting}**]`
-    }).join(`, then\n`);
+export function stringifyAbility(ability: AbilityInstance) {
+    return `[\`${ability.name}\`] ${ability.desc}`;
 }
 
-export function getDefaultAbility(): Ability {
+export function getAbilityState(ability: AbilityInstance, time: number): TimeSlotState {
+    const { begin, windup, swing, recovery } = ability;
+    if (ability.getFinishTime() < time) return TimeSlotState.Past;
+    if (time < begin) return TimeSlotState.Idle;
+    if (time < begin + windup) return TimeSlotState.Windup;
+    if (time < begin + windup + swing) return TimeSlotState.Swing;
+    if (time < begin + windup + swing + recovery) return TimeSlotState.Recovery;
+    return TimeSlotState.Idle;
+}
+
+export function getDefaultAbility(): Omit<Required<Ability>, 'associatedBattle' | 'initiator' | 'target'> {
     return {
         trigger: AbilityTrigger.Immediate,
-        name: AbilityName.None,
+        name: AbilityName.Idle,
         desc: null,
         targetting: 'enemy',
         AOE: 1,
         castLocation: ['front'],
         targetLocation: ['front'],
-        timeRequired: 5,
+        windup: 0,
+        swing: 0,
+        recovery: 0,
+        begin: -1,
     }
 }

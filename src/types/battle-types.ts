@@ -81,7 +81,18 @@ export enum EntityStatusType {
     MultiplyStat = 'MultiplyStat',
     Bleed = 'Bleed',
 }
+export enum TimeSlotState {
+    Past = 'past',
+    Windup = 'windup',
+    Swing = 'swing',
+    Recovery = 'recovery',
+    Idle = 'idle',
+}
 
+export interface TimeSlot {
+    ability: AbilityInstance,
+    time: number,
+}
 export interface BattleConfig {
     channel: TextBasedChannel,
     users: User[];

@@ -16,11 +16,15 @@ export class AbilityInstance extends EventEmitter implements Ability {
     AOE: AOE;
     castLocation: Location[];
     targetLocation: Location[];
-    timeRequired: number;
+
+    begin: number;
+    windup: number;
+    swing: number;
+    recovery: number;
 
     constructor(_option: Partial<Ability> & { associatedBattle: Battle }) {
         super();
-        const basis = abilitiesMap.get(_option.name || AbilityName.None) ?? getDefaultAbility();
+        const basis = abilitiesMap.get(_option.name || AbilityName.Idle) ?? getDefaultAbility();
         const options = Object.assign(NewObject(basis), _option);
         
         this.associatedBattle = options.associatedBattle;
@@ -33,7 +37,10 @@ export class AbilityInstance extends EventEmitter implements Ability {
         this.targetLocation = options.targetLocation;
         this.initiator = options.initiator;
         this.target = options.target;
-        this.timeRequired = options.timeRequired;
+        this.windup = options.windup;
+        this.swing = options.swing;
+        this.recovery = options.recovery;
+        this.begin = options.begin ?? -1;
     }
 
     confirm() {
@@ -85,5 +92,9 @@ export class AbilityInstance extends EventEmitter implements Ability {
                 }
                 break;
         }
+    }
+
+    getFinishTime() {
+        return this.begin + this.windup + this.swing + this.recovery - 1;
     }
 }

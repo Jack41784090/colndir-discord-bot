@@ -13,7 +13,7 @@ export enum AbilityTrigger {
 export type Targetting = 'self' | 'ally' | 'enemy'
 export type AOE = number | 'all'
 export enum AbilityName {
-    None = 'null',
+    Idle = 'null',
     Stab = 'phy-stab',
     Slash = 'phy-slash',
     Sigurdian_Strength = 'phy-sigurdian-strength',
@@ -31,6 +31,10 @@ export interface Ability {
     AOE: AOE;
     castLocation: Location[];
     targetLocation: Location[];
-    timeRequired: number;
+
+    begin?: number;
+    windup: number;
+    swing: number;
+    recovery: number;
 }
 
