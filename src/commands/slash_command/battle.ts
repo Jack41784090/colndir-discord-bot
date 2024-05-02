@@ -1,10 +1,16 @@
 import bot from '@bot';
 import { Battle } from '@classes/Battle';
 import { ChatInputCommand, Command } from '@sapphire/framework';
+import { PermissionFlagsBits } from 'discord.js';
 
 export class StartBattleCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
-        super(context, {...options});
+        super(context, {
+            ...options,
+            description: 'Start a battle',
+            detailedDescription: 'Start a battle',
+            requiredUserPermissions: [PermissionFlagsBits.Administrator]
+        });
     }
 
     public override async registerApplicationCommands(registry: ChatInputCommand.Registry) {
