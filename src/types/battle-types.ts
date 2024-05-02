@@ -1,7 +1,7 @@
-import { AbilityInstance } from '@classes/Ability';
+import { Ability, StatusEffect } from '@classes/Ability';
 import { Entity } from '@classes/Battle';
 import charactersJSON from '@data/characters.json';
-import { Snowflake, TextBasedChannel, User } from 'discord.js';
+import { Collection, Snowflake, TextBasedChannel, User } from 'discord.js';
 
 export type WeaponType = 'physical' | 'magical'
 export type WeaponMultiplierAction = 'add' | 'multiply';
@@ -35,22 +35,24 @@ export interface Armour {
 // beu: number,    // Beauty: physical appearance
 export interface EntityConstance extends PureCharacter {
     username?: string,
-    id?: string,
     iconURL?: string,
+    id: string,
     name: string,
 }
-export type EntityInitRequirements = Partial<iEntity> & { base: EntityConstance, team: string }
+export type EntityInitRequirements = Partial<iEntity> & { base: Omit<EntityConstance, 'id'>, team: string }
 export interface iEntity {
     team: string,
     base: EntityConstance,
     name: string,
+
     warSupport: number,
     stamina: number,
-    HP: number,
+    hp: number,
     org: number,
+    pos: number,
     loc: Location,
 
-    status: EntityStatus[],
+    status: StatusEffect[],
 
     equippedWeapon: Weapon,
     equippedArmour: Armour,
@@ -59,22 +61,24 @@ export interface iEntity {
     isPvp: boolean,
 }
 
-export enum EntityStatusApplyType {
+export enum StatusEffectApplyType {
     persistent = 'persistent',
     stackable = 'stackable',
 }
-export interface EntityStatusSource {
-    from: Entity | AbilityInstance,
+export interface StatusEffectSource {
+    from: Entity | Ability,
 }
-export type EntityStatus = {
-    source: EntityStatusSource,
-    type: EntityStatusType,
-    applyType: EntityStatusApplyType,
+export type iStatusEffect = {
+    emoji?: string,
+    source: StatusEffectSource,
+    type: StatusEffectType,
+    applyType: StatusEffectApplyType,
     name?: EntityStats,
     value: number,
     duration: number,
 }
-export enum EntityStatusType {
+export enum StatusEffectType {
+    None = 'none',
     IncreaseStat = 'IncreaseStat',
     DecreaseStat = 'DecreaseStat',
     MultiplyStat = 'MultiplyStat',
@@ -89,8 +93,17 @@ export enum TimeSlotState {
 }
 
 export interface TimeSlot {
-    ability: AbilityInstance,
+    ability: Ability,
     time: number,
+}
+export interface iDealWithResult {
+    desc: string,
+    initiator: Entity
+    target: Entity
+    vInitiator: iEntity,
+    vTarget: iEntity,
+    initiatorDiff: Collection<string, { toString: () => string }>,
+    targetDiff: Collection<string, { toString: () => string }>,
 }
 export interface BattleConfig {
     channel: TextBasedChannel,

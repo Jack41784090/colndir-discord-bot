@@ -6,8 +6,13 @@ export enum AbilityTrigger {
     Immediate = 'always',
     StartSkirmish = 'startRound',
     EndSkirmish = 'endRound',
-    OnUse = 'onUse',
-    OnHit = 'onHit',
+    ReceiveDamage = 'onReceiveDamage',
+    Hit = 'onHit',
+    Damage = 'onDamage',
+    Miss = 'onMiss',
+    Windup = 'onWindup',
+    Swing = 'onSwing',
+    Recovery = 'onRecovery',
     Proc = 'proc',
 }
 export type Targetting = 'self' | 'ally' | 'enemy'
@@ -19,7 +24,7 @@ export enum AbilityName {
     Sigurdian_Strength = 'phy-sigurdian-strength',
 }
 
-export interface Ability {
+export interface iAbility {
     initiator?: Entity;
     target?: Entity;
     associatedBattle?: Battle;

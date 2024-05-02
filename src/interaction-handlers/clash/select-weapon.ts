@@ -45,7 +45,7 @@ export class SelectCharacterSelectHandler extends InteractionHandler {
                 new EmbedBuilder()
                     .setColor(Colors.DarkRed)
                     .setTitle(`${attackerName} attacks ${defenderName} with ${weaponName}!`)
-                    .setDescription(`# \`${roundToDecimalPlace(defender.HP, 3)}\` \n ## :boom: \`-${roundToDecimalPlace(damage, 3)}\` \n # \`${roundToDecimalPlace(defender.HP - damage, 3)}\``)
+                    .setDescription(`# \`${roundToDecimalPlace(defender.hp, 3)}\` \n ## :boom: \`-${roundToDecimalPlace(damage, 3)}\` \n # \`${roundToDecimalPlace(defender.hp - damage, 3)}\``)
             ]
         });
     }

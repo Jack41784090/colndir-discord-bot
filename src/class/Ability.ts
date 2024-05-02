@@ -1,37 +1,47 @@
-import { AOE, Ability, AbilityName, AbilityTrigger, EntityStatusApplyType, EntityStatusType, Location, Targetting, iEntity } from "@ctypes";
+import { AOE, AbilityName, AbilityTrigger, EntityStats, Location, StatusEffectApplyType, StatusEffectSource, StatusEffectType, Targetting, iAbility, iEntity, iStatusEffect } from "@ctypes";
 import { abilitiesMap } from "@data/abilities";
-import { NewObject, getDefaultAbility } from "@functions";
+import { statusEffectMap } from "@data/statusEffects";
+import { NewObject, getCharArray, getDefaultAbility, getDefaultStatusEffect } from "@functions";
 import { EventEmitter } from "events";
 import { Battle, Entity } from "./Battle";
+
+export class StatusEffect implements iStatusEffect {
+    emoji?: string;
+    source: StatusEffectSource;
+    type: StatusEffectType;
+    applyType: StatusEffectApplyType;
+    name?: EntityStats;
+    value: number;
+    duration: number;
+
+    constructor(_option: Partial<iStatusEffect> & { source: StatusEffectSource}) {
+        const basis = statusEffectMap.get(_option.type ?? StatusEffectType.None) ?? getDefaultStatusEffect();
+        const options = Object.assign(NewObject(basis), _option);
+
+        this.emoji = options.emoji;
+        this.source = options.source;
+        this.type = options.type;
+        this.applyType = options.applyType;
+        this.name = options.name;
+        this.value = options.value;
+        this.duration = options.duration;
+    }
+
+    apply() {
+
+    }
+}
 
 /**
  * Represents an instance of an ability.
  */
-export class AbilityInstance extends EventEmitter implements Ability {
-    private _initiator?: Entity;
-    public get initiator(): Entity | undefined {
-        return this._initiator;
-    }
-    public set initiator(value: Entity) {
-        this._initiator = value;
-    }
+export class Ability extends EventEmitter implements iAbility {
+    initiator: Entity
+    target: Entity;
+    associatedBattle: Battle
 
-    private _target?: Entity | undefined;
-    public get target(): Entity | undefined {
-        return this._target;
-    }
-    public set target(value: Entity) {
-        this._target = value;
-    }
-
-    private _associatedBattle!: Battle;
-    public get associatedBattle(): Battle {
-        return this._associatedBattle;
-    }
-    public set associatedBattle(value: Battle) {
-        this._associatedBattle = value;
-    }
-
+    confirmed: boolean = false;
+    id: string = getCharArray(20);
     trigger: AbilityTrigger;
     name: AbilityName;
     desc: string | null;
@@ -45,7 +55,7 @@ export class AbilityInstance extends EventEmitter implements Ability {
     swing: number;
     recovery: number;
 
-    constructor(_option: Partial<Ability> & { associatedBattle: Battle }) {
+    constructor(_option: Partial<iAbility> & { associatedBattle: Battle, initiator: Entity }) {
         super();
         const basis = abilitiesMap.get(_option.name || AbilityName.Idle) ?? getDefaultAbility();
         const options = Object.assign(NewObject(basis), _option);
@@ -62,23 +72,36 @@ export class AbilityInstance extends EventEmitter implements Ability {
         this.swing = options.swing;
         this.recovery = options.recovery;
         this.begin = options.begin ?? -1;
+        this.initiator = options.initiator;
+        this.target = options.target ?? options.initiator;
 
-        if (options.initiator)
-            this.initiator = options.initiator;
         if (options.target)
             this.target = options.target;
+    
+        this.once(AbilityTrigger.Proc, (attacker: Entity, defender: Entity) => {
+            this.execute( attacker, defender);
+        });
     }
 
     /**
      * Confirms the ability and sets up the necessary event listeners.
      */
     confirm() {
-        console.log(`Ability: ${this.name} confirmed with [${this.trigger}]`);
+        if (this.confirmed) return;
+        this.confirmed = true;
+        console.log(`【Ability】 ${this.name} confirmed with [${this.trigger}]`);
         switch (this.trigger) {
-            case AbilityTrigger.OnUse:
-            case AbilityTrigger.OnHit:
-                this.on(this.trigger, (attacker: iEntity, defender: iEntity) => {
-                    this.execute(attacker, defender);
+            case AbilityTrigger.Windup:
+            case AbilityTrigger.Swing:
+            case AbilityTrigger.Recovery:
+                this.on(this.trigger, (attacker: iEntity, defender: iEntity, ability: Ability) => {
+                    if (ability.id === this.id && this.getFinishTime() >= this.associatedBattle.time) {
+                        this.emit(AbilityTrigger.Proc, attacker, defender);
+                    }
+                    else if (this.getFinishTime() < this.associatedBattle.time) {
+                        console.log(`【Ability】 ${this.name} failed to proc due to time; [${this.trigger}] time: ${this.getFinishTime()} vs ${this.associatedBattle.time}`);
+                        this.removeAllListeners();
+                    }
                 });
                 break;
             default:
@@ -94,34 +117,28 @@ export class AbilityInstance extends EventEmitter implements Ability {
      * @param attacker The attacking entity.
      * @param defender The defending entity.
      */
-    execute(attacker: iEntity, defender: iEntity) {
-        console.log(`Ability: ${this.name} executed via [${this.trigger}]`);
-        this.associatedBattle.emit(AbilityTrigger.Proc, this);
+    private execute(attacker: iEntity, defender: iEntity) {
+        console.log(`【Ability】 ${this.name} executed via [${this.trigger}]`);
         switch (this.name) {
             case AbilityName.Stab:
-                defender.status.push({
-                    type: EntityStatusType.Bleed,
+                defender.status.push(new StatusEffect({
+                    type: StatusEffectType.Bleed,
                     duration: 20,
                     value: 1,
-                    applyType: EntityStatusApplyType.stackable,
-                    source: {
-                        from: this
-                    }
-                })
+                    source: { from: this },
+                }))
                 break
             case AbilityName.Sigurdian_Strength:
                 const existing = attacker.status.find(s => s.source.from === this);
                 if (!existing) {
-                    attacker.status.push({
-                        type: EntityStatusType.IncreaseStat,
+                    attacker.status.push(new StatusEffect({
+                        type: StatusEffectType.IncreaseStat,
                         duration: Number.POSITIVE_INFINITY,
                         value: 1,
                         name: 'str',
-                        applyType: EntityStatusApplyType.persistent,
-                        source: {
-                            from: this
-                        }
-                    })
+                        applyType: StatusEffectApplyType.persistent,
+                        source: { from: this },
+                    }))
                 }
                 break;
         }
@@ -132,6 +149,8 @@ export class AbilityInstance extends EventEmitter implements Ability {
      * @returns The finish time of the ability.
      */
     getFinishTime() {
-        return this.begin + this.windup + this.swing + this.recovery - 1;
+        const finish = this.begin + this.windup + this.swing + this.recovery - 1
+        // console.log(`【Finish time】: ${finish}`)
+        return finish;
     }
 }

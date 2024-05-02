@@ -1,6 +1,6 @@
 import bot from "@bot";
 import { Character, UserData } from "@ctypes";
-import { NewObject } from "@functions";
+import { getDefaultCharacter, NewObject } from "@functions";
 import { Image } from "canvas";
 import { User } from "discord.js";
 import * as firebase_admin from "firebase-admin";
@@ -48,7 +48,11 @@ export async function GetUserData(id_author: string | User): Promise<UserData> {
 export async function GetCombatCharacter(id: string, authorise?: User) {
     const character = await GetData('Combat Character', id) as Character | null;
     if (character !== null && (character.authorised.includes("all") || character.authorised.includes(authorise?.id || ""))) {
-        return character;
+        const r = Object.assign(getDefaultCharacter(), character);
+        if (Object.keys(r).length !== Object.keys(character).length) {
+            await SaveData('Combat Character', id, r);
+        }
+        return r;
     }
     return null;
 }

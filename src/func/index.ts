@@ -1,3 +1,8 @@
+import bot from "@bot";
+import { Ability } from "@classes/Ability";
+import { Battle } from "@classes/Battle";
+import { IKE_USERID, MERC_USERID } from "@constants";
+import { AbilityName } from "@ctypes";
 import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
 import ytdl from "ytdl-core";
 
@@ -8,9 +13,7 @@ export function formalise(string: string): string {
     return string.split(/[\s_-]+/).map(s => capitalize(s.toLowerCase())).join(" ");
 }
 
-export function NewObject<T extends object, T2 extends object>
-    (origin: T, _mod?: T2): T & T2
-{
+export function NewObject<T extends object, T2 extends object>(origin: T, _mod?: T2): T & T2 {
     const mod = (_mod || {}) as T2;
     return Object.assign({...origin}, mod);
 }
@@ -186,29 +189,38 @@ export async function getVideoInfo(youtubeLink: string) {
 }
 
 export async function TestFunction() {
-    // const ike = await bot.users.fetch(IKE_USERID);
-    // const merc = await bot.users.fetch(MERC_USERID)
-    // const b = await Battle.Create({
-    //     channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
-    //     users: [merc, ike],
-    //     teamMapping: {
-    //         'enemy': [merc],
-    //         'player': [ike]
-    //     },
-    //     pvp: true
-    // })
+    const ike = await bot.users.fetch(IKE_USERID);
+    const merc = await bot.users.fetch(MERC_USERID)
+    const b = await Battle.Create({
+        channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
+        users: [merc, ike],
+        teamMapping: {
+            [merc.id]: "Merc",
+            [ike.id]: "Ike",
+        },
+    })
+
+    b.spawnUsers();
     
-    // // const a1 = new AbilityInstance({
-    // //     associatedBattle: b,
-    // //     name: AbilityName.Stab,
-    // //     trigger: AbilityTrigger.StartSkirmish,
-    // // });
-    // // const a2 = new AbilityInstance({
-    // //     associatedBattle: b,
-    // //     name: AbilityName.Slash,
-    // //     trigger: AbilityTrigger.EndSkirmish,
-    // // });
-    // b.spawnUsers();
+    const a1 = new Ability({
+        associatedBattle: b,
+        name: AbilityName.Stab,
+        initiator: b.playerEntitiesList.find(e => e.base.id === MERC_USERID)!,
+        target: b.playerEntitiesList.find(e => e.base.id ===  IKE_USERID)!,
+        begin: 0,
+    });
+    const a2 = new Ability({
+        associatedBattle: b,
+        name: AbilityName.Slash,
+        initiator: b.playerEntitiesList.find(e => e.base.id === IKE_USERID)!,
+        target: b.playerEntitiesList.find(e => e.base.id === MERC_USERID),
+        begin: 0,
+    });
+
+    b.queueTimelineAbilities(merc.id, a1)
+    b.queueTimelineAbilities(ike.id, a2)
+
+    b.begin();
 
     // for (let i = 0; i < 40; i++) {
     //     const pierce = i;
@@ -310,7 +322,7 @@ export async function TestFunction() {
     //     console.log(`[f: ${weaponForce}, d: ${armourDefence}] = ${forceDamage}`, `[p: ${weaponPierce}, a: ${armourArmour}] = ${pierceDamage}`, `=== ${totalDamage}`);
     // })
 
-
+    
 }
 
 export function isSubset<T>(_superset: Set<T>, _subset: Set<T>): boolean;

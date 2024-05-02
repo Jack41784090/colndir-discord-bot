@@ -27,10 +27,15 @@ export const INTERFACE_PERSIST_TIME = 15
 export const INTERFACE_REFRESH_TIME = 5
 
 export enum Emoji {
+    BOOM = '💥',
+    STATUS = '📊',
     TARGET = '🎯',
     SHIELD = '🛡️',
     SWORD = '⚔️',
     HEART = '❤️',
+    MORALE = '🔵',
+    STAMINA = '🟢',
+    POSTURE = '🟡',
     CLOCK = '⏰',
     BOMB = '💣',
     FIRE = '🔥',
