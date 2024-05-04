@@ -197,7 +197,7 @@ export function syncVirtualandActual(virtual: iEntity, actual: Entity) {
     actual.stamina = virtual.stamina;
     actual.org = virtual.org;
     actual.warSupport = virtual.warSupport;
-    actual.status = virtual.status;
+    actual.status = virtual.status.map(s => new StatusEffect(s));
     actual.pos = virtual.pos;
     actual.loc = virtual.loc;
 }
@@ -250,48 +250,46 @@ export function getRealAbilityName(ability: AbilityName): string {
     return getKeyFromEnumValue(AbilityName, ability) ?? ability;
 }
 
-export function addHPBar(_maxValue: number, _nowValue: number, spiked = false, _maxBarProportion = Math.round(_maxValue)) {
+export function addHPBar({ maxValue, nowValue, spiked, proportion, reducedValue }: {
+    maxValue: number,
+    nowValue: number,
+    reducedValue?: number,
+    spiked?: boolean,
+    proportion?: number,
+}) {
     const bar = '█';
     const line = '|';
+    const slush = '░'
 
-    if (_maxValue < 0) _maxValue = 0;
-    if (_nowValue < 0) _nowValue = 0;
-    if (_nowValue > _maxValue) _nowValue = _maxValue;
+    if (maxValue < 0) maxValue = 0;
+    if (nowValue < 0) nowValue = 0;
+    if (nowValue > maxValue) nowValue = maxValue;
+    if (reducedValue === undefined) reducedValue = 0;
+    if (proportion === undefined) proportion = Math.round(maxValue);
+    if (spiked === undefined) spiked = false;
+    maxValue *= (proportion / maxValue);
+    nowValue *= (proportion / maxValue);
 
-    const maxValue =
-        _maxValue * (_maxBarProportion / _maxValue);
-    const nowValue =
-        _nowValue * (_maxBarProportion / _maxValue);
-
-    const blockCount =
-        nowValue <= 0?
-            0:
-            Math.round(nowValue);
-    const lineCount = Math.round(maxValue) - blockCount;
-
-    // debug("_maxBarProportion", _maxBarProportion);
-    // debug("_maxValue", _maxValue);
-    // debug("_nowValue", _nowValue);
-    // debug("maxValue", maxValue);
-    // debug("nowValue", nowValue);
-    // debug("blockCount", blockCount);
-    // debug("lineCount", lineCount);
+    const blockCount = nowValue <= 0?
+        0:
+        Math.round(nowValue);
+    const slushCount = reducedValue <= 0?
+        0:
+        Math.round(reducedValue);
+    const lineCount = Math.round(maxValue) - blockCount - reducedValue;
 
     let result = '';
-    for (let i = 0; i < blockCount; i++) {
-        result += bar;
-    }
-    for (let i = 0; i < lineCount; i++) {
-        result += line;
-    }
+    for (let i = 0; i < blockCount; i++) result += bar;
+    for (let i = 0; i < reducedValue; i++) result += slush;
+    for (let i = 0; i < lineCount; i++) result += line;
     const spikes = spiked? '`': '';
 
     return spikes + result + spikes;
 }
 
 type ob = { [key: string]: any };
-export function findDifference(entity1: ob, entity2: ob, layer = 2) {
-    if (layer < 1) return new Collection<string, [{ toString: () => string }, { toString: () => string }]>();
+export function findDifference<T extends ob>(entity1: T, entity2: T, layer = 2): Collection<keyof T, [{ toString: () => string }, { toString: () => string }]> {
+    if (layer < 1) return new Collection<keyof T, [{ toString: () => string }, { toString: () => string }]>();
 
     if ('emoji' in entity1) console.log('Finding difference...', entity1, entity2)
     const result = new Collection<string, [{ toString: () => string }, { toString: () => string }]>();
@@ -332,11 +330,29 @@ export function findDifference(entity1: ob, entity2: ob, layer = 2) {
     return result;
 }
 
-export function virtual(entity: Entity): iEntity {
+export function virtual(entity: iEntity): iEntity {
     return NewObject(entity, {
         status: entity.status.map(s => NewObject(s)),
         equippedWeapon: NewObject(entity.equippedWeapon),
         equippedArmour: NewObject(entity.equippedArmour),
-        base: NewObject(entity.base),
     });
+}
+
+export function clashString(beforeAfter: [number, number]): string
+export function clashString(defender: iEntity, damage: number): string
+export function clashString(beforeAfter: [number,number] | iEntity, damage?: number) {
+    let before, d, after;
+    if (damage === undefined) {
+        before = (beforeAfter as number[])[0];
+        after = (beforeAfter as number [])[1];
+        d = before - after;
+    }
+    else {
+        before = (beforeAfter as iEntity).hp;
+        after = before - damage;
+        d = damage;
+    }
+    return `## \`${roundToDecimalPlace(before, 3)}\` \n`+
+            `## :boom: \`-${roundToDecimalPlace(d, 3)}\` \n`+
+            `## \`${roundToDecimalPlace(after, 3)}\``
 }

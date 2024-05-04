@@ -66,6 +66,7 @@ export enum StatusEffectApplyType {
     stackable = 'stackable',
 }
 export interface StatusEffectSource {
+    id: string,
     from: Entity | Ability,
 }
 export type iStatusEffect = {
@@ -79,9 +80,9 @@ export type iStatusEffect = {
 }
 export enum StatusEffectType {
     None = 'none',
-    IncreaseStat = 'IncreaseStat',
-    DecreaseStat = 'DecreaseStat',
-    MultiplyStat = 'MultiplyStat',
+    IncreaseStat = 'Buff',
+    DecreaseStat = 'Debuff',
+    MultiplyStat = 'S. Buff',
     Bleed = 'Bleed',
 }
 export enum TimeSlotState {
@@ -96,14 +97,15 @@ export interface TimeSlot {
     ability: Ability,
     time: number,
 }
+export type BeforeAfter = Collection<keyof iEntity, [{ toString: () => string }, { toString: () => string }]>
 export interface iDealWithResult {
     desc: string,
     initiator: Entity
     target: Entity
     vInitiator: iEntity,
     vTarget: iEntity,
-    initiatorDiff: Collection<string, { toString: () => string }>,
-    targetDiff: Collection<string, { toString: () => string }>,
+    initiatorDiff: BeforeAfter,
+    targetDiff: BeforeAfter,
 }
 export interface BattleConfig {
     channel: TextBasedChannel,

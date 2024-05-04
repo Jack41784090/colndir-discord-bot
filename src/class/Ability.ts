@@ -125,7 +125,7 @@ export class Ability extends EventEmitter implements iAbility {
                     type: StatusEffectType.Bleed,
                     duration: 20,
                     value: 1,
-                    source: { from: this },
+                    source: { from: this, id: getCharArray(20) },
                 }))
                 break
             case AbilityName.Sigurdian_Strength:
@@ -137,7 +137,7 @@ export class Ability extends EventEmitter implements iAbility {
                         value: 1,
                         name: 'str',
                         applyType: StatusEffectApplyType.persistent,
-                        source: { from: this },
+                        source: { from: this, id: getCharArray(20) },
                     }))
                 }
                 break;

@@ -10,6 +10,10 @@ export const NOAH_USERID = '843757875477741569';
 export const MERC_USERID = '262871357455466496';
 export const IKE_USERID = '634873409393917952';
 export const NOAH_DMID= '1232116541890363403';
+export const LAB_CHANNELID = '1232126725039587389'
+
+export const COLNDIR_SERVERID = '981009510934151188';
+export const ALTPAKT_SERVERID = '1206814142938357780';
 
 export const LOGCO_ORG = 11.1;
 export const XCO_ORG = 0.23;
@@ -43,4 +47,12 @@ export enum Emoji {
     WIND = '🌀',
     EARTH = '🌍',
     RED_SIGN = '🚫',
+    THINKING = '🤔',
+}
+
+export enum iEntityKeyEmoji {
+    stamina = Emoji.STAMINA,
+    hp = Emoji.HEART,
+    org = Emoji.MORALE,
+    pos = Emoji.POSTURE,
 }

@@ -1,9 +1,10 @@
 import bot from "@bot";
 import { Ability } from "@classes/Ability";
 import { Battle } from "@classes/Battle";
-import { IKE_USERID, MERC_USERID } from "@constants";
+import { COLNDIR_SERVERID, IKE_USERID, LAB_CHANNELID, MERC_USERID } from "@constants";
 import { AbilityName } from "@ctypes";
-import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
+import { Canvas } from "canvas";
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder, EmbedData, Message, MessageCreateOptions, Role, TextBasedChannel } from "discord.js";
 import ytdl from "ytdl-core";
 
 export function capitalize(string: string): string {
@@ -343,6 +344,146 @@ export function getLoadingEmbed() {
         })
         .setTitle("Now Loading...");
     return loadingEmbed;
+}
+
+// Define a Square class to hold information about each square
+class Square {
+    constructor(public x: number, public y: number, public size: number, public color: string, public text: string) {}
+}
+
+function hexToRgb(hex: number): string {
+    // Extract the RGB components from the hexadecimal value
+    const r = (hex >> 16) & 0xFF;
+    const g = (hex >> 8) & 0xFF;
+    const b = hex & 0xFF;
+    
+    // Return the RGB string format
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function normalizeMathematicalAlphanumericSymbols(text: string): string {
+    return text.normalize('NFKD').replace(/[^\x00-\x7F]/g, '');
+}
+
+function drawCanvas(roles: Role[]) {
+    // Get the canvas element from the HTML
+    const canvas = new Canvas(500, 500);
+    const ctx = canvas.getContext('2d');
+
+    // Define the size of the canvas
+    canvas.width = 500;
+    canvas.height = 500;
+
+    // Define an array to hold the squares
+    const squares: Square[] = [];
+
+    // Generate random squares
+    for (let i = 0; i < 5; i++) {
+        const y = i * 100;
+        for (let j = 0; j < 5; j++) {
+            const x = j * 100;
+            const size = 100;
+            const index = i * 5 + j;
+            console.log(roles[index]?.name)
+            squares.push(new Square(x, y, size, hexToRgb(roles[index]?.color ?? 0), normalizeMathematicalAlphanumericSymbols(roles[index]?.name ?? "/")));
+        }
+    }
+
+    // Draw each square
+    squares.forEach(square => {
+        ctx.fillStyle = square.color;
+        ctx.fillRect(square.x, square.y, square.size, square.size);
+        
+        ctx.font = `12px Verdana`;
+        ctx.lineWidth = 0.5;
+        ctx.fillStyle = "white"
+        ctx.strokeStyle = "black"
+        ctx.textAlign = "center"
+        ctx.fillText(square.text, square.x + square.size / 2, square.y + square.size / 2);
+        ctx.strokeText(square.text, square.x + square.size / 2, square.y + square.size / 2);
+    });
+
+    return canvas.toBuffer();
+}
+
+export async function roleManagement() {
+    const channel = await bot.channels.fetch(LAB_CHANNELID); if (!channel?.isTextBased()) return;
+    const guild = await bot.guilds.fetch(COLNDIR_SERVERID);
+    const roles = await guild.roles.fetch();
+    const botRoles = await guild.members.fetchMe().then(me => me.roles.cache);
+    const highestRole = botRoles.reduce((prev, role) => {
+        if (role.position > prev.position) return role;
+        return prev;
+    });
+    // const nonEng = roles
+    //     .filter(r => !r.name.match(/\b[a-zA-Z]+/))
+    //     .sort((a, b) => a.position - b.position);
+
+    const colourRoles = Array.from(roles.filter(r => r.color).values())
+    // console.log(colourRoles.map(r => `${r.name}: ${r.color}`).join('\n'));
+
+    const sendMS = (ms: MessageCreateOptions) => {
+        ms.embeds = [
+            new EmbedBuilder()
+                .setTitle("Choose your colour!")
+                .setDescription("Choose a colour to represent yourself.")
+                .setColor(Colors.Blue)
+                .setFooter({ text: "You can change your colour at any time." })
+                .setImage("attachment://colours.png")]
+        ms.files = [new AttachmentBuilder(drawCanvas(roleArray)).setName("colours.png")]
+        roleArray = [];
+        channel.send(ms)
+    }
+    const newMS = () => {
+        const ms = { components: [] as ActionRowBuilder<ButtonBuilder>[] } as MessageCreateOptions ;
+        return ms;
+    }
+    let roleArray: Role[] = [];
+    let ar = new ActionRowBuilder<ButtonBuilder>()
+    let ms = newMS();
+    let r = colourRoles.shift();
+    let count = 0;
+    while (r) {
+        if (ms.components!.length === 5) {
+            sendMS(ms);
+            ms = newMS();
+        }
+        if (count === 5) {
+            ms.components!.push(ar)
+            console.log(ar.components.map(c => c.data.label).join(', '))
+            ar = new ActionRowBuilder<ButtonBuilder>();
+            count = 0;
+        }
+        console.log(r.name, r.id);
+        ar.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`role:${r.id}`)
+                .setLabel(r.name)
+                .setStyle(ButtonStyle.Primary))
+        roleArray.push(r);
+        count++;
+        r = colourRoles.shift();
+    }
+    if (!ms.components!.includes(ar)) ms.components!.push(ar);
+    sendMS(ms);
+
+    // roles.forEach(r => {
+    //     r.setMentionable(false).catch(e => console.error(e));
+    // })
+
+    // const sortByPerm = Array.from(roles.values()).sort((a, b) => Number(a.permissions.bitfield) - Number(b.permissions.bitfield));
+    // const rp = sortByPerm
+    //     .filter(r => r.position < highestRole.position)
+    //     .map((r, i) => ({ role: r, position: i + 1 }));
+    // console.log(`Roles: ${sortByPerm.map(r => `${r.name}: ${r.permissions.toArray().join(', ')} (${r.position})`).join('\n')}`)
+    // guild.roles.setPositions(rp)
+    //     .then(x => {
+    //         console.log("Roles sorted")
+    //         console.log(`Roles: ${x.roles.cache
+    //             .sort((a, b) => a.position - b.position)
+    //             .map(r => r.name).join(', ')}`)
+    //     })
+    //     .catch(e => console.error(e));
 }
 
 export * from './add-to-team';

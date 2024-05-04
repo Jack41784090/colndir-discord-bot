@@ -1,7 +1,7 @@
 import bot from "@bot";
-import { Emoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
-import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BotType, EntityConstance, EntityInitRequirements, iDealWithResult, iEntity, Location, StatusEffectApplyType, StatusEffectType, TimeSlot, TimeSlotState, UserData, Weapon } from "@ctypes";
-import { addHPBar, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, GetCombatCharacter, getLoadingEmbed, getRealAbilityName, GetUserData, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, setUpInteractionCollect, stringifyAbility, uniformRandom, virtual } from "@functions";
+import { Emoji, iEntityKeyEmoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
+import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BeforeAfter, BotType, EntityConstance, EntityInitRequirements, iDealWithResult, iEntity, Location, StatusEffectApplyType, StatusEffectType, TimeSlot, TimeSlotState, UserData, Weapon } from "@ctypes";
+import { addHPBar, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, GetCombatCharacter, getLoadingEmbed, getRealAbilityName, GetUserData, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, setUpInteractionCollect, stringifyAbility, syncVirtualandActual, uniformRandom, virtual } from "@functions";
 import colors from 'ansi-colors';
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, Collection, EmbedBuilder, Interaction, InteractionCollector, InteractionResponse, Message, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
@@ -168,10 +168,26 @@ class AttackInterface {
                 new EmbedBuilder()
                     .setTitle("Attack Interface")
                     .setDescription(
-                        `${Emoji.HEART}: ${addHPBar(maxHP(this.initaitor.base), this.initaitor.hp, true)}\n`+
-                        `${Emoji.STAMINA}: ${addHPBar(maxStamina(this.initaitor.base), this.initaitor.stamina, true)}\n`+
-                        `${Emoji.MORALE}: ${addHPBar(maxOrganisation(this.initaitor.base), this.initaitor.org, true)}\n`+
-                        `${Emoji.POSTURE}: ${addHPBar(maxPosture(this.initaitor.base), this.initaitor.pos, true)}\n`+
+                        `${Emoji.HEART}: ${addHPBar({
+                            maxValue: maxHP(this.initaitor.base),
+                            nowValue: this.initaitor.hp,
+                            spiked: true
+                        })}\n`+
+                        `${Emoji.STAMINA}: ${addHPBar({
+                            maxValue: maxStamina(this.initaitor.base),
+                            nowValue: this.initaitor.stamina,
+                            spiked: true
+                        })}\n`+
+                        `${Emoji.MORALE}: ${addHPBar({
+                            maxValue: maxOrganisation(this.initaitor.base),
+                            nowValue: this.initaitor.org,
+                            spiked: true
+                        })}\n`+
+                        `${Emoji.POSTURE}: ${addHPBar({
+                            maxValue: maxPosture(this.initaitor.base),
+                            nowValue: this.initaitor.pos,
+                            spiked: true
+                        })}\n`+
                         `${Emoji.TARGET}: ${this.target?.name || 'None'}\n`+
                         `${Emoji.SWORD}: ${this.selectedAbility ? stringifyAbility(this.selectedAbility) : 'None'}`
                     )
@@ -310,8 +326,8 @@ class AttackInterface {
 
 class DealWithResult implements iDealWithResult {
     desc: string;
-    initiatorDiff: Collection<string, { toString: () => string }>;
-    targetDiff: Collection<string, { toString: () => string }>;
+    initiatorDiff: BeforeAfter
+    targetDiff: BeforeAfter
     vInitiator: iEntity;
     vTarget: iEntity;
     initiator: Entity;
@@ -382,8 +398,10 @@ export class Entity implements iEntity {
     }
 
     applyStatus(s: StatusEffect) {
+        if (!this.status.includes(s)) this.status.push(s);
         const virtualStats = virtual(this);
-        switch (s.type) {
+        const virtualStatus = virtualStats.status.find(x => x.source.id === s.source.id)!;
+        switch (virtualStatus.type) {
             case StatusEffectType.IncreaseStat:
                 if (s.name)
                     virtualStats.base[s.name] += s.value;
@@ -400,10 +418,10 @@ export class Entity implements iEntity {
                 virtualStats.hp -= s.value;
                 break;
         }
-        s.duration--;
-        if (s.duration <= 0) {
-            const i = this.status.indexOf(s);
-            this.status.splice(i, 1);
+        virtualStatus.duration--;
+        if (virtualStatus.duration <= 0) {
+            const i = virtualStats.status.indexOf(s);
+            virtualStats.status.splice(i, 1);
         }
         return virtualStats;
     }
@@ -438,6 +456,10 @@ export class Entity implements iEntity {
 
     virtual() {
         return virtual(this);
+    }
+
+    getFullName() {
+        return `${this.name} <@${this.base.id}>`
     }
 }
 
@@ -628,7 +650,7 @@ export class Battle extends EventEmitter {
     }
     private dealWithWindupHit(initiator: Entity, target: Entity, ts: TimeSlot): DealWithResult {
         const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
-        const abilityName = `\`${getRealAbilityName(ts.ability.name)}\``;
+        const abilityName = getRealAbilityName(ts.ability.name);
         const targetAbilityName = targetTS?
             `\`${getRealAbilityName(targetTS.ability.name)}\``:
             'unknown ability'
@@ -638,12 +660,6 @@ export class Battle extends EventEmitter {
         const vInitiator = initiator.applyCurrentStatus();
         const vTarget = target.applyCurrentStatus();
 
-        const target_BarBeforeDamage = '`'+`${
-            vTarget.hp > 0 ?
-                addHPBar(maxHP(vTarget.base), vTarget.hp):
-                Emoji.BOOM
-        }`+'`'
-
         const d = damage(vInitiator, vTarget);
         console.log(`【Damage】`, d)
 
@@ -652,14 +668,8 @@ export class Battle extends EventEmitter {
         const iniDiff = findDifference(target, vTarget);
         const tarDiff = findDifference(target, vTarget);
 
-        const target_BarAfterDamage = '`'+`${
-            vTarget.hp > 0 ?
-                addHPBar(maxHP(vTarget.base), vTarget.hp):
-                Emoji.BOOM
-        }`+'`'
-
         return new DealWithResult({
-            desc: `\n${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is winding up!`,
+            desc: `${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is winding up!`,
             initiatorDiff: iniDiff,
             targetDiff: tarDiff,
             vInitiator,
@@ -670,7 +680,7 @@ export class Battle extends EventEmitter {
     }
     private dealWithRecoveryHit(initiator: Entity, target: Entity, ts: TimeSlot): DealWithResult {
         const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
-        const abilityName = `\`${getRealAbilityName(ts.ability.name)}\``;
+        const abilityName = getRealAbilityName(ts.ability.name)
         const targetAbilityName = targetTS?
             `\`${getRealAbilityName(targetTS.ability.name)}\``:
             'unknown ability'
@@ -680,25 +690,13 @@ export class Battle extends EventEmitter {
         const vInitiator = initiator.applyCurrentStatus();
         const vTarget = target.applyCurrentStatus();
 
-        const target_BarBeforeDamage = '`'+`${
-            vTarget.hp > 0 ?
-                addHPBar(maxHP(vTarget.base), vTarget.hp):
-                Emoji.BOOM
-        }`+'`'
-
         const d = damage(vInitiator, vTarget);
         console.log(`【Damage】`, d)
 
         vTarget.hp -= d.totalDamage;
 
-        const target_BarAfterDamage = '`'+`${
-            vTarget.hp > 0 ?
-                addHPBar(maxHP(vTarget.base), vTarget.hp):
-                Emoji.BOOM
-        }`+'`'
-
         return new DealWithResult({
-            desc: `\n${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is recovering!`,
+            desc: `${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is recovering!`,
             initiatorDiff: findDifference(initiator, vInitiator),
             targetDiff: findDifference(target, vTarget),
             vInitiator,
@@ -709,9 +707,9 @@ export class Battle extends EventEmitter {
     }
     private dealWithClash(initiator: Entity, target: Entity, ts: TimeSlot): DealWithResult {
         const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
-        const abilityName = `\`${getRealAbilityName(ts.ability.name)}\``;
+        const abilityName = getRealAbilityName(ts.ability.name)
         const targetAbilityName = targetTS?
-            `\`${getRealAbilityName(targetTS.ability.name)}\``:
+            getRealAbilityName(targetTS.ability.name):
             'unknown ability'
 
         // clash, posture hit
@@ -719,26 +717,17 @@ export class Battle extends EventEmitter {
         const vInitiator = initiator.applyCurrentStatus();
         const vTarget = target.applyCurrentStatus();
 
-        const target_BarBeforeDamage = '`'+`${
-            vTarget.pos > 0 ?
-                addHPBar(maxPosture(vTarget.base), vTarget.pos):
-                Emoji.BOOM
-        }`+'`'
-
         const d = damage(vInitiator, vTarget);
         const postureDamage = (d.forceDamage * 0.65 + d.pierceDamage * 0.35)/10 * uniformRandom(0.95, 1.05);
         console.log(`【Damage】`, d, postureDamage)
 
         vTarget.pos -= postureDamage;
 
-        const target_BarAfterDamage = '`'+`${
-            vTarget.pos > 0 ?
-                addHPBar(maxPosture(vTarget.base), vTarget.pos):
-                Emoji.BOOM
-        }`+'`'
-
         return new DealWithResult({
-            desc: `\n${initiator.name} clashes with ${target.name}!`,
+            desc:
+                `${initiator.name} [${abilityName}]`+
+            " clashes with "+
+                `${target.name} [${targetAbilityName}]!`,
             initiatorDiff: findDifference(initiator, vInitiator),
             targetDiff: findDifference(target, vTarget),
             vInitiator,
@@ -770,7 +759,7 @@ export class Battle extends EventEmitter {
             case TimeSlotState.Windup:
                 ts.ability.emit(AbilityTrigger.Windup, initiator, target, ts.ability);
                 return new DealWithResult({
-                    desc: `${initiator.name} is winding up ${ts.ability.name}.`,
+                    desc: `${initiator.name} is winding up ${getRealAbilityName(ts.ability.name)}.`,
                     vInitiator: initiator.applyCurrentStatus(),
                     vTarget: target.applyCurrentStatus(),
                     initiator,
@@ -791,7 +780,7 @@ export class Battle extends EventEmitter {
             case TimeSlotState.Recovery:
                 ts.ability.emit(AbilityTrigger.Recovery, initiator, target, ts.ability);
                 return new DealWithResult({
-                    desc: `${initiator.name} is recovering from ${ts.ability.name}.`,
+                    desc: `${initiator.name} is recovering from ${getRealAbilityName(ts.ability.name)}.`,
                     vInitiator: initiator.applyCurrentStatus(),
                     vTarget: target.applyCurrentStatus(),
                     initiator,
@@ -801,6 +790,41 @@ export class Battle extends EventEmitter {
                 return null;
         }
 
+    }
+    private stringifyDifference(d: BeforeAfter, entity: Entity) {
+        const main = d.map((v, k) => {
+            console.log(k, v)
+            const v0 = v[0] as number;
+            const v1 = v[1] as number;
+            switch(k) {
+                case 'pos':
+                    return `${iEntityKeyEmoji[k]??Emoji.STATUS} ${Emoji.BOOM} ${(v1-v0).toFixed(3)}\n`+
+                        `${addHPBar({
+                            maxValue: maxPosture(entity.base),
+                            nowValue: v1 as number,
+                            reducedValue: v0 - v1,
+                            spiked: true
+                        })}`
+                case 'hp':
+                    return `${iEntityKeyEmoji[k]??Emoji.STATUS} ${Emoji.BOOM} ${(v1-v0).toFixed(3)}\n`+
+                        `${addHPBar({
+                            maxValue: maxHP(entity.base),
+                            nowValue: v1 as number,
+                            reducedValue: v0 - v1,
+                            spiked: true
+                        })}`
+                case 'status':
+                    return (v as [StatusEffect[], StatusEffect[]])[1]
+                        .map(s => `## ${s.emoji??Emoji.STATUS} ${entity.name} **${s.type}** [${s.duration}]`).join('\n');
+                default:
+                    return `${k}: ${v[0].toString()} -> ${v[1].toString()}`;
+            }
+        })
+            .join('\n');
+        
+        return main?
+            `# ${entity.getFullName()}: \n${main}\n`:
+            '';
     }
     private async requestAction(userID: string[]): Promise<unknown> {
         console.log(`【Request Action】 Requesting action from ${userID.join(', ')}`)
@@ -826,14 +850,23 @@ export class Battle extends EventEmitter {
             if (ts) {
                 const r = this.dealWithPlayerTimeslot(timeslots[0], id)
                 if (!r) continue;
-                console.log(r.initiatorDiff);
-                console.log(r.targetDiff);
+                
+                const { desc, initiatorDiff, targetDiff, vInitiator, vTarget, initiator, target } = r;
+                roundEmbed.setDescription(
+                    `${(roundEmbed.data.description??'')}\n`+
+                    `\`\`\` ${desc} \`\`\`\n`+
+                    `${this.stringifyDifference(initiatorDiff, initiator)}`+
+                    `${this.stringifyDifference(targetDiff, target)}`
+                );
+
+                syncVirtualandActual(vInitiator, initiator);
+                if (target !== initiator) syncVirtualandActual(vTarget, target);
             }
             else {
                 await this.requestAction([id]);
             }
         }
-        // this.channel.send({ embeds: [roundEmbed] });
+        this.channel.send({ embeds: [roundEmbed] });
         
         setTimeout(() => {
             this.round();
