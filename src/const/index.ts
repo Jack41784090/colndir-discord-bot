@@ -6,11 +6,17 @@ export const NORM_CHAR_LIMIT = 2000;
 export const DESCRIPTION_LIMIT = 4096;
 export const FIELD_NAME_LIMIT = 256;
 export const FIELD_VALUE_LIMIT = 1024;
+
 export const NOAH_USERID = '843757875477741569';
 export const MERC_USERID = '262871357455466496';
 export const IKE_USERID = '634873409393917952';
 export const NOAH_DMID= '1232116541890363403';
 export const LAB_CHANNELID = '1232126725039587389'
+
+export const USERINFO_COLLECTION_NAME = 'User';
+export const GUILDINFO_COLLECTION_NAME = 'Guild';
+export const DEFAULT_WELCOME_MESSAGE = 'Welcome to the server, @user!';
+export const DEFAULT_LEAVE_MESSAGE = 'Goodbye, @user!';
 
 export const BUSS_SERVERID = '1237927573489582190';
 export const COLNDIR_SERVERID = '981009510934151188';

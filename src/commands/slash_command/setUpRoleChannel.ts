@@ -1,5 +1,6 @@
 import bot from '@bot';
 import { RoleManagement } from '@classes/RoleManagement';
+import { getErrorEmbed } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
 
@@ -42,18 +43,18 @@ export class SetUpRoleChannelCommand extends Command {
 
         const roleManagement = RoleManagement.getInstance();
         const overwrite = interaction.options.getBoolean('overwrite') || false;
-        if (overwrite) {
-            const existingRoleChannelID = await roleManagement.checkExistingRoleChannel(interaction.guildId ?? '');
-            const existingRoleChannel = interaction.guild?.channels.cache.get(existingRoleChannelID??'');
-            if (existingRoleChannel && existingRoleChannel.isTextBased()) {
-                const botMessages = await existingRoleChannel.messages.fetch();
-                botMessages.forEach(m => m.author.id === bot.user?.id && m.delete());
-            }
+        const existingRoleChannel = await roleManagement.checkExistingRoleChannel(interaction.guildId ?? '');
+        if (overwrite && existingRoleChannel?.isTextBased()) {
+            const botMessages = await existingRoleChannel.messages.fetch();
+            botMessages.forEach(m => m.author.id === bot.user?.id && m.delete());
+        }
+        else if (existingRoleChannel) {
+            return interaction.editReply({ content: "Role management message already exists." });
         }
 
         const result = await roleManagement.setUpRoleChannel(channelID);
         if (result instanceof Error) {
-            return interaction.editReply({ content: result.message });
+            return interaction.editReply({ embeds: [getErrorEmbed(result.message)] });
         }
         return interaction.deleteReply();
     }

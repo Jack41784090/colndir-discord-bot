@@ -1,5 +1,5 @@
 import bot from "@bot";
-import { GetRoleManagementMessage } from "@functions";
+import { GetGuildData } from "@functions";
 import { Canvas } from "canvas";
 import { ActionRowBuilder, ActionRowData, AttachmentBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder, Guild, GuildMember, Interaction, MessageCreateOptions, Role, TextBasedChannel, TextChannel } from "discord.js";
 
@@ -168,8 +168,8 @@ export class RoleManagement {
     private constructor() {}
 
     public async checkExistingRoleChannel(serverID: string) {
-        const data = await GetRoleManagementMessage(serverID);
-        return data.messageID || null;
+        const data = await GetGuildData(serverID);
+        return data ? await bot.channels.fetch(data.roleChannelID) : null;
     }
 
     public async setUpRoleChannel(channelID: string) {

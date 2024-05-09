@@ -24,3 +24,11 @@ export type UserData = {
     characters: ColndirCharacter[]
     combatCharacters: string[]
 }
+export type GuildData = {
+    roleChannelID: string;
+    roleMessageID: string[];
+    welcomeMessage: string;
+    welcomeChannelID: string;
+    leaveMessage: string;
+    leaveChannelID: string;
+}
