@@ -1,9 +1,6 @@
 import bot from "@bot";
-import { Ability } from "@classes/Ability";
-import { Battle } from "@classes/Battle";
-import { IKE_USERID, MERC_USERID } from "@constants";
-import { AbilityName } from "@ctypes";
-import { Colors, EmbedBuilder, EmbedData, Message, TextBasedChannel } from "discord.js";
+import { BUSS_SERVERID } from "@constants";
+import { Colors, EmbedBuilder, EmbedData, ForumChannel, GuildForumTag, Message, TextBasedChannel, ThreadChannel } from "discord.js";
 import ytdl from "ytdl-core";
 
 export function capitalize(string: string): string {
@@ -188,141 +185,50 @@ export async function getVideoInfo(youtubeLink: string) {
     }
 }
 
-export async function TestFunction() {
-    const ike = await bot.users.fetch(IKE_USERID);
-    const merc = await bot.users.fetch(MERC_USERID)
-    const b = await Battle.Create({
-        channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
-        users: [merc, ike],
-        teamMapping: {
-            [merc.id]: "Merc",
-            [ike.id]: "Ike",
-        },
+async function move(oldForum: ForumChannel, newForum: ForumChannel) {
+    const posts = await oldForum.threads.fetch();
+    const archived = await oldForum.threads.fetchArchived();
+
+    const minorLoreTag = newForum.availableTags.find(t => t.name.toLowerCase().includes('minor lore'))!;
+    const majorLoreTag = newForum.availableTags.find(t => t.name.toLowerCase().includes('major lore'))!;
+    
+    posts.threads.forEach(p => {
+        post(p, newForum, majorLoreTag, false);
     })
+    archived.threads.forEach(p => {
+        post(p, newForum, minorLoreTag, true);
+    })
+}
+async function post(testPOst: ThreadChannel, newSigurd: ForumChannel, tag: GuildForumTag, archive: boolean) {
+    const messages = Array.from((await testPOst.messages.fetch()).values()).reverse();
+    const firstMessage = messages.shift()!;
+    newSigurd.threads.create({
+        name: testPOst.name,
+        message: {
+            content: firstMessage.content,
+            embeds: firstMessage.embeds,
+            files: firstMessage.attachments.map(a => a.url),
+        },
+    }).then(async t => {
+        t.setAppliedTags([tag.id]);
+        await t.setLocked(true);
+        for (const m of messages) {
+            await t.send({
+                content: m.content,
+                embeds: m.embeds,
+                files: m.attachments.map(a => a.url),
+            });
+        }
+        if (archive) {
+            await t.setArchived(true);
+        }
+    })
+}
+export async function TestFunction() {
+    const guild = await bot.guilds.fetch(BUSS_SERVERID)
+    const onboard = await guild.fetchOnboarding();
 
-    b.spawnUsers();
-
-    const a1 = new Ability({
-        associatedBattle: b,
-        name: AbilityName.Stab,
-        initiator: b.playerEntitiesList.find(e => e.base.id === MERC_USERID)!,
-        target: b.playerEntitiesList.find(e => e.base.id === IKE_USERID)!,
-        begin: 0,
-    });
-    const a2 = new Ability({
-        associatedBattle: b,
-        name: AbilityName.Slash,
-        initiator: b.playerEntitiesList.find(e => e.base.id === IKE_USERID)!,
-        target: b.playerEntitiesList.find(e => e.base.id === MERC_USERID),
-        begin: 0,
-    });
-
-    b.queueTimelineAbilities(merc.id, a1)
-    b.queueTimelineAbilities(ike.id, a2)
-
-    b.begin();
-
-    // for (let i = 0; i < 40; i++) {
-    //     const pierce = i;
-    //     const armor = 20
-    //     const attacker = b.playerEntities[0];
-    //     const defender = b.playerEntities[1];
-    //     attacker.equippedWeapon.force = pierce;
-    //     defender.equippedArmour.defence = armor;
-    //     const pd = calculateForceDamage(attacker, defender, 100);
-    //     console.log(`[f: ${pierce}, d: ${armor}] = ${pd}`);
-    // }
-
-    // const startPierceFail = 0.057
-    // const startForceFail = 0.007
-    // const tick = 0.001
-    // const totalResult: Array<[[number, number], number]> = [];
-    // for (let o = -2000; o < 2000; o++) {
-    //     for (let oi = -2000; oi < 2000; oi++) {
-    //         const rs = [];
-    //         for (let i = 0; i < 10; i++) {
-    //             for (let x = 0; x < 10; x++) {
-    //                 const p1 = b.playerEntities[0];
-    //                 const p2 = b.playerEntities[1];
-
-    //                 p1.equippedWeapon.force = i;
-    //                 p1.equippedWeapon.pierce = 10 - i;
-    //                 p2.equippedArmour.defence = x;
-    //                 p2.equippedArmour.armour = 10 - x;
-    //                 // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
-    //                 const result = Clash(b.playerEntities[0], b.playerEntities[1], startPierceFail + o * tick, startForceFail + oi * tick);
-    //                 rs.push(result)
-    //             }
-    //         }
-
-    //         rs.sort((a, b) => a.totalDamage - b.totalDamage);
-    //         const totalDamage = rs.map(r => r.totalDamage);
-    //         const normalDistribution = std(totalDamage);
-    //         // console.log(normalDistribution)
-    //         totalResult.push([[startPierceFail + o * tick, startForceFail + o * tick] as [number,number], normalDistribution as unknown as number]);
-    //     }
-    // }
-
-    // totalResult.sort((a, b) => a[1] - b[1]);
-    // const mostOptimal = totalResult[0];
-    // const leastOptimal = totalResult[totalResult.length - 1];
-    // console.log(totalResult[0], totalResult[totalResult.length - 1]);
-    // const rs = [];
-    // for (let i = 0; i < 10; i++) {
-    //     for (let x = 0; x < 10; x++) {
-    //         const p1 = b.playerEntities[0];
-    //         const p2 = b.playerEntities[1];
-
-    //         p1.equippedWeapon.force = i;
-    //         p1.equippedWeapon.pierce = 10 - i;
-    //         p2.equippedArmour.defence = x;
-    //         p2.equippedArmour.armour = 10 - x;
-    //         // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
-    //         const result = Clash(b.playerEntities[0], b.playerEntities[1], leastOptimal[0][0], leastOptimal[0][1]);
-    //         rs.push(result)
-    //     }
-    // }
-
-    // rs.sort((a, b) => a.totalDamage - b.totalDamage);
-    // rs.forEach(r => {
-    //     const { totalDamage, pierceDamage, forceDamage, weaponPierce, weaponForce, armourArmour, armourDefence } = r;
-    //     console.log(`[f: ${weaponForce}, d: ${armourDefence}] = ${forceDamage}`, `[p: ${weaponPierce}, a: ${armourArmour}] = ${pierceDamage}`, `=== ${totalDamage}`);
-    // })
-
-    // const rs = [];
-
-    // for (let i = 0; i < 10; i++) {
-    //     for (let x = 0; x < 10; x++) {
-    //         const p1 = b.playerEntities[0];
-    //         const p2 = b.playerEntities[1];
-
-    //         p1.equippedWeapon.force = i;
-    //         p1.equippedWeapon.pierce = 10 - i;
-    //         p2.equippedArmour.defence = x;
-    //         p2.equippedArmour.armour = 10 - x;
-    //         // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
-    //         const result = Clash(b.playerEntities[0], b.playerEntities[1]);
-    //         rs.push(result)
-    //     }
-    // }
-
-    // // for (let i = 0; i < 20; i++) {
-    // //     const p1 = b.playerEntities[0];
-    // //     const p2 = b.playerEntities[1];
-
-    // //     p1.equippedWeapon.pierce = 5;
-    // //     p2.equippedArmour.armour = i;
-    // //     // b.skirmish(b.playerEntities[0], b.playerEntities[1]);
-    // //     const { totalDamage, pierceDamage, forceDamage } = Clash(b.playerEntities[0], b.playerEntities[1]);
-    // //     console.log(`[p: 0, a: ${i}] = ${pierceDamage}`);
-    // // }
-    // rs.sort((a, b) => a.totalDamage - b.totalDamage);
-    // rs.forEach(r => {
-    //     const { totalDamage, pierceDamage, forceDamage, weaponPierce, weaponForce, armourArmour, armourDefence } = r;
-    //     console.log(`[f: ${weaponForce}, d: ${armourDefence}] = ${forceDamage}`, `[p: ${weaponPierce}, a: ${armourArmour}] = ${pierceDamage}`, `=== ${totalDamage}`);
-    // })
-
-
+    console.log(onboard)
 }
 
 export function isSubset<T>(_superset: Set<T>, _subset: Set<T>): boolean;
