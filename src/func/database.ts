@@ -27,6 +27,27 @@ export async function GetData(collection: string, doc: string) {
         snapShot.data()!:
         null;
 }
+export async function SaveData<T extends object>(collection: string, doc: string, data: T) {
+    const document = database.collection(collection).doc(doc);
+    const snapshotData = await document.get();
+
+    console.log(`Saving Data [${collection}] => [${doc}]`, data);
+    if (snapshotData.exists) {
+        console.log(`||=> Exists`);
+        await document.update(data);
+    }
+    else {
+        console.log(`||=> Does not exist. Creating new data.`);
+        await document.set(data);
+    }
+
+    return data;
+}
+
+export async function SaveUserData(data: UserData) {
+    const defaultUserData = GetDefaultUserData();
+    return await SaveData("User", data.id, NewObject(defaultUserData, data));
+}
 export async function GetUserData(id: string): Promise<UserData>;
 export async function GetUserData(author: User): Promise<UserData> 
 export async function GetUserData(id_author: string | User): Promise<UserData> {
@@ -45,6 +66,14 @@ export async function GetUserData(id_author: string | User): Promise<UserData> {
     return data;
 }
 
+export async function SaveRoleManagementMessage(serverID: string, messageID: string) {
+    return await SaveData('Role Management', serverID, { messageID });
+}
+export async function GetRoleManagementMessage(serverID: string) {
+    const fetched = await GetData('Role Management', serverID);
+    return (fetched || { messageID: "" }) as { messageID: string };
+}
+
 export async function GetCombatCharacter(id: string, authorise?: User) {
     const character = await GetData('Combat Character', id) as Character | null;
     if (character !== null && (character.authorised.includes("all") || character.authorised.includes(authorise?.id || ""))) {
@@ -56,28 +85,6 @@ export async function GetCombatCharacter(id: string, authorise?: User) {
     }
     return null;
 }
-
-export async function SaveData<T extends object>(collection: string, doc: string, data: T) {
-    const document = database.collection(collection).doc(doc);
-    const snapshotData = await document.get();
-
-    console.log(`Saving Data [${collection}] => [${doc}]`, data);
-    if (snapshotData.exists) {
-        console.log(`||=> Exists`);
-        await document.update(data);
-    }
-    else {
-        console.log(`||=> Does not exist. Creating new data.`);
-        await document.set(data);
-    }
-
-    return data;
-}
-export async function SaveUserData(data: UserData) {
-    const defaultUserData = GetDefaultUserData();
-    return await SaveData("User", data.id, NewObject(defaultUserData, data));
-}
-
 export async function CreateNewUser(author: User): Promise<UserData> {
     const defaultData = GetDefaultUserData(author)
     return await SaveUserData(defaultData);
