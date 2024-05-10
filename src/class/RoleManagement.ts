@@ -112,9 +112,7 @@ function createNewMessageOptions() {
 }
 function appendRoleToMessageOptions(role: Role, options: MessageCreateOptions) {
     if (!options.components) {
-        options.components = [
-            new ActionRowBuilder<ButtonBuilder>()
-        ];
+        options.components = [new ActionRowBuilder<ButtonBuilder>()];
     }
 
     let actionRow = options.components.length > 0 ?
@@ -126,7 +124,7 @@ function appendRoleToMessageOptions(role: Role, options: MessageCreateOptions) {
         .setStyle(ButtonStyle.Primary)
 
     if (actionRow.components.length < 5) {
-        actionRow.components.push(button);
+        (actionRow.components as ButtonBuilder[]).push(button);
     }
     else {
         actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
