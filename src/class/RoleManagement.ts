@@ -131,7 +131,7 @@ function appendRoleToMessageOptions(role: Role, options: MessageCreateOptions) {
     }
 
     if (!options.components.includes(actionRow)) {
-        options.components.push(actionRow);
+        (options.components as (ActionRowData<ButtonBuilder> | ActionRowBuilder)[]).push(actionRow);
     }
 }
 function sendRoleSelection(channel: TextBasedChannel, roleArray: Role[], options: MessageCreateOptions) {
