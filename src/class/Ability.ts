@@ -36,7 +36,7 @@ export class StatusEffect implements iStatusEffect {
  * Represents an instance of an ability.
  */
 export class Ability extends EventEmitter implements iAbility {
-    initiator: Entity
+    attacker: Entity
     target: Entity;
     associatedBattle: Battle
 
@@ -64,11 +64,11 @@ export class Ability extends EventEmitter implements iAbility {
             recovery: 1,
             begin: begin ?? b.time,
             associatedBattle: b,
-            initiator: e,
+            attacker: e,
         });
     }
 
-    constructor(_option: Partial<iAbility> & { associatedBattle: Battle, initiator: Entity }) {
+    constructor(_option: Partial<iAbility> & { associatedBattle: Battle, attacker: Entity }) {
         super();
         const basis = abilitiesMap.get(_option.name || AbilityName.Idle) ?? getDefaultAbility();
         const options = Object.assign(NewObject(basis), _option);
@@ -85,8 +85,8 @@ export class Ability extends EventEmitter implements iAbility {
         this.swing = options.swing;
         this.recovery = options.recovery;
         this.begin = options.begin ?? -1;
-        this.initiator = options.initiator;
-        this.target = options.target ?? options.initiator;
+        this.attacker = options.attacker;
+        this.target = options.target ?? options.attacker;
 
         if (options.target)
             this.target = options.target;

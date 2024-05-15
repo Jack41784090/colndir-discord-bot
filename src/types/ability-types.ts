@@ -25,7 +25,7 @@ export enum AbilityName {
 }
 
 export interface iAbility {
-    initiator?: Entity;
+    attacker?: Entity;
     target?: Entity;
     associatedBattle?: Battle;
 

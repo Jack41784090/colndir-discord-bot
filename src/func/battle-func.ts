@@ -160,7 +160,7 @@ export function attack(attacker: Entity | iEntity, target: Entity | iEntity, val
     // const ability = this.getAction();
     // const targetAbility = target.getAction();
 
-    const vInitiator =
+    const vattacker =
         attacker instanceof Entity?
             apply?
                 attacker.applyCurrentStatus():
@@ -172,10 +172,10 @@ export function attack(attacker: Entity | iEntity, target: Entity | iEntity, val
                 target.applyCurrentStatus():
                 target.virtual():
             target;
-    const initiatorDiff = apply ? [findDifference(attacker, vInitiator)] : [];
+    const attackerDiff = apply ? [findDifference(attacker, vattacker)] : [];
     const targetDiff = apply ? [findDifference(target, vTarget)] : [];
 
-    if (value instanceof Function) value = value(damage(vInitiator, vTarget));
+    if (value instanceof Function) value = value(damage(vattacker, vTarget));
     const oldValue = vTarget[type];
     vTarget[type] -= value;
     targetDiff.push({
@@ -183,9 +183,9 @@ export function attack(attacker: Entity | iEntity, target: Entity | iEntity, val
     })
 
     return {
-        initiatorDiff,
+        attackerDiff,
         targetDiff,
-        vInitiator,
+        vattacker,
         vTarget,
         value,
     }
@@ -243,7 +243,7 @@ export function getAbilityState(ability: Ability, time: number): TimeSlotState {
     return TimeSlotState.Idle;
 }
 
-export function getDefaultAbility(): Omit<Required<iAbility>, 'associatedBattle' | 'initiator' | 'target'> {
+export function getDefaultAbility(): Omit<Required<iAbility>, 'associatedBattle' | 'attacker' | 'target'> {
     return {
         trigger: AbilityTrigger.Immediate,
         name: AbilityName.Idle,
@@ -474,7 +474,7 @@ export function updateRoundEmbed(roundEmbed: EmbedBuilder,dwr: iBattleResult,) {
     return roundEmbed.setDescription(
         `${roundEmbed.data.description ?? ''}\n` +
         `\`\`\` ${dwr.desc} \`\`\`\n` +
-        `${stringifyDifference(dwr.initiatorDiff, dwr.initiator)}` +
+        `${stringifyDifference(dwr.attackerDiff, dwr.attacker)}` +
         `${stringifyDifference(dwr.targetDiff, dwr.target)}`
     );
 }

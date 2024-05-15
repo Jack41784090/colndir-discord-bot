@@ -100,11 +100,11 @@ export type ToStringTuple = [{ toString: () => string }, { toString: () => strin
 export type BeforeAfter = Record<keyof iEntity, ToStringTuple>[]
 export interface iBattleResult {
     desc: string,
-    initiator: Entity
+    attacker: Entity
     target: Entity
-    vInitiator: iEntity,
+    vattacker: iEntity,
     vTarget: iEntity,
-    initiatorDiff: BeforeAfter,
+    attackerDiff: BeforeAfter,
     targetDiff: BeforeAfter,
 }
 export interface BattleConfig {
