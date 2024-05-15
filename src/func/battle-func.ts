@@ -1,16 +1,14 @@
 import { Ability, StatusEffect } from "@classes/Ability";
 import { Entity } from "@classes/Battle";
-import { Emoji, LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP, forceFailFallCoef, pierceFailFallCoef } from "@constants";
-import { AbilityName, AbilityTrigger, Armour, Character, EntityConstance, PureCharacter, Reality, StatusEffectApplyType, StatusEffectType, TimeSlotState, UserData, Weapon, WeaponMultiplier, iAbility, iEntity, iStatusEffect } from "@ctypes";
+import { Emoji, LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP, forceFailFallCoef, iEntityKeyEmoji, pierceFailFallCoef } from "@constants";
+import { AbilityName, AbilityTrigger, Armour, BeforeAfter, Character, ClashStringParams, DamageReport, EntityConstance, PureCharacter, Reality, StatusEffectApplyType, StatusEffectType, TimeSlotState, ToStringTuple, UserData, Weapon, WeaponMultiplier, iAbility, iBattleResult, iEntity, iEntityStats, iStatusEffect } from "@ctypes";
 import charactersJSON from '@data/characters.json';
-import { NewObject, getCharArray, roundToDecimalPlace } from "@functions";
-import { Client, CollectedInteraction, Collection, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
-import { isArray } from "mathjs";
+import { NewObject, clamp, getCharArray, getWithSign, roundToDecimalPlace } from "@functions";
+import { Client, CollectedInteraction, EmbedBuilder, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
+import { isArray, isNumber } from "mathjs";
 
-export function setUpInteractionCollect(
-    client: Client<true>, cb: (itr: Interaction) => void,
-    options: Partial<InteractionCollectorOptions<CollectedInteraction>> = {}
-) {
+export function setUpInteractionCollect( client: Client<true>, cb: (itr: Interaction) => void,
+    options: Partial<InteractionCollectorOptions<CollectedInteraction>> = {}) {
     // console.log('Setting up interaction collector...');
     const interCollector = new InteractionCollector(client, options);
     interCollector.on('collect', cb);
@@ -60,7 +58,7 @@ export function forceDamage(attacker: iEntity, defender: iEntity, wd = weaponDam
     }
     return fd
 }
-export function damage(attacker: iEntity, defender: iEntity) {
+export function damage(attacker: iEntity, defender: iEntity): DamageReport {
     const weaponPierce = attacker.equippedWeapon.pierce;
     const weaponForce = attacker.equippedWeapon.force;
     const armourArmour = defender.equippedArmour.armour;
@@ -158,6 +156,41 @@ export function defaultWeapon(): Weapon {
     }
 }
 
+export function attack(attacker: Entity | iEntity, target: Entity | iEntity, value: number | ((report: DamageReport) => number), type: keyof iEntityStats = 'hp', apply = false) {
+    // const ability = this.getAction();
+    // const targetAbility = target.getAction();
+
+    const vInitiator =
+        attacker instanceof Entity?
+            apply?
+                attacker.applyCurrentStatus():
+                attacker.virtual():
+            attacker;
+    const vTarget =
+        target instanceof Entity?
+            apply?
+                target.applyCurrentStatus():
+                target.virtual():
+            target;
+    const initiatorDiff = apply ? [findDifference(attacker, vInitiator)] : [];
+    const targetDiff = apply ? [findDifference(target, vTarget)] : [];
+
+    if (value instanceof Function) value = value(damage(vInitiator, vTarget));
+    const oldValue = vTarget[type];
+    vTarget[type] -= value;
+    targetDiff.push({
+        [type]: [oldValue, vTarget[type]]
+    })
+
+    return {
+        initiatorDiff,
+        targetDiff,
+        vInitiator,
+        vTarget,
+        value,
+    }
+}
+
 export function getDefaultCharacter(): PureCharacter {
     return NewObject(charactersJSON.Dummy);
 }
@@ -190,16 +223,6 @@ export function DecipherMultiplier(e: iEntity, x: WeaponMultiplier): number {
     else {
         return reality(e, i as Reality) * DecipherMultiplier(e, x[2]);
     }
-}
-
-export function syncVirtualandActual(virtual: iEntity, actual: Entity) {
-    actual.hp = virtual.hp;
-    actual.stamina = virtual.stamina;
-    actual.org = virtual.org;
-    actual.warSupport = virtual.warSupport;
-    actual.status = virtual.status.map(s => new StatusEffect(s));
-    actual.pos = virtual.pos;
-    actual.loc = virtual.loc;
 }
 
 export function getKeyFromEnumValue(enumObj: any, value: any): string | undefined {
@@ -250,7 +273,7 @@ export function getRealAbilityName(ability: AbilityName): string {
     return getKeyFromEnumValue(AbilityName, ability) ?? ability;
 }
 
-export function addHPBar({ maxValue, nowValue, spiked, proportion, reducedValue }: {
+export function addHPBar(x: {
     maxValue: number,
     nowValue: number,
     reducedValue?: number,
@@ -259,50 +282,65 @@ export function addHPBar({ maxValue, nowValue, spiked, proportion, reducedValue 
 }) {
     const bar = '█';
     const line = '|';
-    const slush = '░'
+    const slush = '░';
+    const increased = '▓'
 
-    if (maxValue < 0) maxValue = 0;
-    if (nowValue < 0) nowValue = 0;
-    if (nowValue > maxValue) nowValue = maxValue;
-    if (reducedValue === undefined) reducedValue = 0;
-    if (proportion === undefined) proportion = Math.round(maxValue);
-    if (spiked === undefined) spiked = false;
-    maxValue *= (proportion / maxValue);
-    nowValue *= (proportion / maxValue);
+    let { maxValue, nowValue, reducedValue, spiked, proportion } = x;
 
-    const blockCount = nowValue <= 0?
-        0:
-        Math.round(nowValue);
-    const slushCount = reducedValue <= 0?
-        0:
-        Math.round(reducedValue);
-    const lineCount = Math.round(maxValue) - blockCount - reducedValue;
+    // Ensuring non-negative, logical values for parameters
+    maxValue = Math.max(0, maxValue);
+    nowValue = Math.max(0, Math.min(nowValue, maxValue)); // Ensure within bounds
+    reducedValue = Math.min(reducedValue ?? 0, maxValue)
+    proportion = Math.max(1, proportion ?? maxValue); // Ensure at least 1 unit
 
+    // Calculate scaling factors and units
+    const scaleFactor = proportion / maxValue;
+    let currentUnits = Math.round(nowValue * scaleFactor);
+    let reducedUnits = Math.round(reducedValue * scaleFactor);
+    let increasedUnits = 0;
+    if (reducedUnits < 0) {
+        currentUnits = Math.max(0, currentUnits + reducedUnits);
+        reducedUnits = 0;
+        increasedUnits = Math.max(-reducedUnits, Math.round(proportion) - currentUnits);
+    }
+    let availableUnits = Math.round(proportion) - currentUnits - reducedUnits;
+
+    // Correct any negative unit calculations
+    if (availableUnits < 0) {
+        const excess = -availableUnits;
+        reducedUnits = Math.max(0, reducedUnits - excess); // Reduce reducedUnits first
+        availableUnits = 0;
+    }
+
+    // Build the health bar string
     let result = '';
-    for (let i = 0; i < blockCount; i++) result += bar;
-    for (let i = 0; i < reducedValue; i++) result += slush;
-    for (let i = 0; i < lineCount; i++) result += line;
-    const spikes = spiked? '`': '';
+    result += bar.repeat(currentUnits);
+    result += slush.repeat(reducedUnits);
+    result += increased.repeat(increasedUnits);
+    result += line.repeat(availableUnits);
 
-    return spikes + result + spikes;
+    // Add spikes if required
+    if (spiked) {
+        result = '`' + result + '`';
+    }
+
+    return result;
 }
 
 type ob = { [key: string]: any };
-export function findDifference<T extends ob>(entity1: T, entity2: T, layer = 2): Collection<keyof T, [{ toString: () => string }, { toString: () => string }]> {
-    if (layer < 1) return new Collection<keyof T, [{ toString: () => string }, { toString: () => string }]>();
-
-    if ('emoji' in entity1) console.log('Finding difference...', entity1, entity2)
-    const result = new Collection<string, [{ toString: () => string }, { toString: () => string }]>();
+export function findDifference<T extends ob>(entity1: T, entity2: T, layer = 2): Record<string, ToStringTuple> {
+    if (layer < 1) return {} as Record<string, ToStringTuple>;
+    const result = {} as Record<string, ToStringTuple>;
     for (const _key in entity1) {
         const key = _key as keyof iEntity;
         if (typeof entity1[key] !== typeof entity2[key]) {
-            result.set(key, [entity1[key], entity2[key]]);
+            result[key] = [entity1[key], entity2[key]]
         }
         else if (isArray(entity1[key]) && isArray(entity2[key])) {
             const array1 = entity1[key] as any[];
             const array2 = entity2[key] as any[];
             if (array1.length !== array2.length) {
-                result.set(key, [array1, array2]);
+                result[key] = [array1, array2];
             }
             else {
                 const diffArray: [StatusEffect[], StatusEffect[]] = [[], []];
@@ -313,18 +351,18 @@ export function findDifference<T extends ob>(entity1: T, entity2: T, layer = 2):
                     }
                 }
                 if (diffArray[0].length > 0) {
-                    result.set(key, diffArray);
+                    result[key] = diffArray;
                 }
             }
         }
         else if (typeof entity1[key] === 'object') {
             const subResult = findDifference(entity1[key], entity2[key], layer - 1);
-            if (subResult.size > 0) {
-                result.set(key, [entity1[key], entity2[key]]);
+            if (Object.keys(subResult).length > 0) {
+                result[key] = [entity1[key], entity2[key]];
             }
         }
         else if (entity1[key] !== entity2[key]) {
-            result.set(key, [entity1[key], entity2[key]]);
+            result[key] = [entity1[key], entity2[key]];
         }
     }
     return result;
@@ -332,27 +370,111 @@ export function findDifference<T extends ob>(entity1: T, entity2: T, layer = 2):
 
 export function virtual(entity: iEntity): iEntity {
     return NewObject(entity, {
+        actionQueue: entity.actionQueue.map(a => NewObject(a)),
         status: entity.status.map(s => NewObject(s)),
         equippedWeapon: NewObject(entity.equippedWeapon),
         equippedArmour: NewObject(entity.equippedArmour),
     });
 }
 
-export function clashString(beforeAfter: [number, number]): string
-export function clashString(defender: iEntity, damage: number): string
-export function clashString(beforeAfter: [number,number] | iEntity, damage?: number) {
-    let before, d, after;
-    if (damage === undefined) {
-        before = (beforeAfter as number[])[0];
-        after = (beforeAfter as number [])[1];
-        d = before - after;
+export function clashString(c: ClashStringParams){
+    if ('damage' in c && isNumber(c.entity[c.type])) {
+        const max = getMax(c.entity, c.type ?? 'hp') ?? 0
+        const now = c.entity[c.type] as number;
+        const statusEmoji = iEntityKeyEmoji[c.type as keyof typeof iEntityKeyEmoji] ?? Emoji.STATUS;
+        const reactionEmoji = c.damage < 0?
+            Emoji.SPARKLES:
+            Emoji.BOOM;
+        const damageSign = getWithSign(-roundToDecimalPlace(c.damage, 3));
+        const hpBar = addHPBar({
+            maxValue: max,
+            nowValue: now,
+            reducedValue: Math.min(c.damage, clamp(max, 0)),
+            spiked: true
+        });
+
+        return `${statusEmoji} ${reactionEmoji} ${damageSign}\n`+
+            `${hpBar} ${now<0?getBelowZeroComment(c.type??'equippedArmour'):""}`;
     }
-    else {
-        before = (beforeAfter as iEntity).hp;
-        after = before - damage;
-        d = damage;
+    else if ('before' in c) {
+        const diff = c.after - c.before
+        const statusEmoji = iEntityKeyEmoji[c.type as keyof typeof iEntityKeyEmoji] ?? Emoji.STATUS;
+        const reactionEmoji = diff > 0?
+            Emoji.SPARKLES:
+            Emoji.BOOM;
+        const damageSign = getWithSign(roundToDecimalPlace(diff, 3));
+        const hpBar = addHPBar({
+            maxValue: getMax(c.entity, c.type ?? 'hp') ?? 0,
+            nowValue: c.after,
+            reducedValue: Math.min(-diff, clamp(c.before, 0)),
+            spiked: true
+        });
+
+        return `${statusEmoji} ${reactionEmoji} ${damageSign}\n`+
+            `${hpBar} ${c.after<0?getBelowZeroComment(c.type??'equippedArmour'):""}`;
     }
-    return `## \`${roundToDecimalPlace(before, 3)}\` \n`+
-            `## :boom: \`-${roundToDecimalPlace(d, 3)}\` \n`+
-            `## \`${roundToDecimalPlace(after, 3)}\``
+    return '';
+}
+
+export function getBelowZeroComment(element: keyof iEntity) {
+    switch (element) {
+        case 'hp':
+            return `${Emoji.DOUBLE_EXCLAMATION} **DEAD**`;
+        case 'pos':
+            return `${Emoji.DOUBLE_EXCLAMATION} **POSTURE BREAK**`;
+        case 'org':
+            return `${Emoji.DOUBLE_EXCLAMATION} **ROUTED**`;
+        case 'stamina':
+            return `${Emoji.DOUBLE_EXCLAMATION} **EXHAUSTED**`;
+        default:
+            return '';
+    }
+}
+
+export function getMax(e: iEntity, key: keyof iEntity) {
+    switch(key) {
+        case 'hp':
+            return maxHP(e.base);
+        case 'org':
+            return maxOrganisation(e.base);
+        case 'pos':
+            return maxPosture(e.base);
+        case 'stamina':
+            return maxStamina(e.base);
+        default:
+            return null
+    }
+}
+
+export function stringifyDifference(d: BeforeAfter, entity: Entity) {
+    const main = d.map(v => {
+        const x = Object.entries(v);
+        return x.map(([key, [before, after]]) => {    
+            const b4 = before as number;
+            const af = after as number;
+            if (entity[key as keyof iEntityStats] !== undefined && isNumber(b4) && isNumber(af)) {
+                return clashString({
+                    entity: entity,
+                    before: b4,
+                    after: af,
+                    type: key as keyof iEntityStats,
+                });
+            }
+            else return '';
+        }).filter(x => x).join('\n');
+    })
+        .join('\n');
+    
+    return main?
+        `# ${entity.getFullName()}: \n${main}\n`:
+        '';
+}
+
+export function updateRoundEmbed(roundEmbed: EmbedBuilder,dwr: iBattleResult,) {
+    return roundEmbed.setDescription(
+        `${roundEmbed.data.description ?? ''}\n` +
+        `\`\`\` ${dwr.desc} \`\`\`\n` +
+        `${stringifyDifference(dwr.initiatorDiff, dwr.initiator)}` +
+        `${stringifyDifference(dwr.targetDiff, dwr.target)}`
+    );
 }

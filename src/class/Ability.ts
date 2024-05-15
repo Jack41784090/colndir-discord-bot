@@ -55,6 +55,19 @@ export class Ability extends EventEmitter implements iAbility {
     swing: number;
     recovery: number;
 
+    static Recovering(b: Battle, e: Entity, begin?: number) {
+        return new Ability({
+            name: AbilityName.Idle,
+            trigger: AbilityTrigger.Recovery,
+            windup: 0,
+            swing: 0,
+            recovery: 1,
+            begin: begin ?? b.time,
+            associatedBattle: b,
+            initiator: e,
+        });
+    }
+
     constructor(_option: Partial<iAbility> & { associatedBattle: Battle, initiator: Entity }) {
         super();
         const basis = abilitiesMap.get(_option.name || AbilityName.Idle) ?? getDefaultAbility();

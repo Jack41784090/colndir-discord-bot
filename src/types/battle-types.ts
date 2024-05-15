@@ -1,7 +1,8 @@
 import { Ability, StatusEffect } from '@classes/Ability';
 import { Entity } from '@classes/Battle';
 import charactersJSON from '@data/characters.json';
-import { Collection, Snowflake, TextBasedChannel, User } from 'discord.js';
+import { Snowflake, TextBasedChannel, User } from 'discord.js';
+import { iAbility } from './ability-types';
 
 export type WeaponType = 'physical' | 'magical'
 export type WeaponMultiplierAction = 'add' | 'multiply';
@@ -40,16 +41,18 @@ export interface EntityConstance extends PureCharacter {
     name: string,
 }
 export type EntityInitRequirements = Partial<iEntity> & { base: Omit<EntityConstance, 'id'>, team: string }
-export interface iEntity {
-    team: string,
-    base: EntityConstance,
-    name: string,
-
+export interface iEntityStats {
     warSupport: number,
     stamina: number,
     hp: number,
     org: number,
     pos: number,
+}
+export interface iEntity extends iEntityStats {
+    actionQueue: iAbility[];
+    team: string,
+    base: EntityConstance,
+    name: string,
     loc: Location,
 
     status: StatusEffect[],
@@ -93,12 +96,9 @@ export enum TimeSlotState {
     Idle = 'idle',
 }
 
-export interface TimeSlot {
-    ability: Ability,
-    time: number,
-}
-export type BeforeAfter = Collection<keyof iEntity, [{ toString: () => string }, { toString: () => string }]>
-export interface iDealWithResult {
+export type ToStringTuple = [{ toString: () => string }, { toString: () => string }]
+export type BeforeAfter = Record<keyof iEntity, ToStringTuple>[]
+export interface iBattleResult {
     desc: string,
     initiator: Entity
     target: Entity
@@ -133,3 +133,20 @@ export enum Reality {
     Bravery = 'bravery',
 }
 
+export type ClashStringParams = 
+    {entity: Entity, type: keyof iEntityStats}
+    & 
+    ({type: keyof iEntity,damage: number,} |
+    {before: number,after: number,});
+
+export interface DamageReport {
+    weaponPierce: number;
+    weaponForce: number;
+    armourArmour: number;
+    armourDefence: number;
+
+    weaponDamage: number;
+    pierceDamage: number;
+    forceDamage: number;
+    totalDamage: number;
+}

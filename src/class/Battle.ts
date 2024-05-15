@@ -1,9 +1,9 @@
 import bot from "@bot";
-import { Emoji, iEntityKeyEmoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
-import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BeforeAfter, BotType, EntityConstance, EntityInitRequirements, iDealWithResult, iEntity, Location, StatusEffectApplyType, StatusEffectType, TimeSlot, TimeSlotState, UserData, Weapon } from "@ctypes";
-import { addHPBar, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, GetCombatCharacter, getLoadingEmbed, getRealAbilityName, GetUserData, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, setUpInteractionCollect, stringifyAbility, syncVirtualandActual, uniformRandom, virtual } from "@functions";
+import { Emoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
+import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BeforeAfter, BotType, EntityConstance, EntityInitRequirements, iBattleResult, iEntity, Location, StatusEffectApplyType, StatusEffectType, TimeSlotState, UserData, Weapon } from "@ctypes";
+import { addHPBar, attack, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, GetCombatCharacter, getLoadingEmbed, getRealAbilityName, GetUserData, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, properPrint, setUpInteractionCollect, stringifyAbility, uniformRandom, updateRoundEmbed, virtual } from "@functions";
 import colors from 'ansi-colors';
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, Collection, EmbedBuilder, Interaction, InteractionCollector, InteractionResponse, Message, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, Collection, EmbedBuilder, Interaction, InteractionCollector, InteractionResponse, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
 import { Ability, StatusEffect } from "./Ability";
 
@@ -63,7 +63,8 @@ class ActionRequest {
         const reasons = [
             this.battle.userDataList.some(p => p.id === user.id) ? '' : 'You are not a player.',
             this.activatedList.has(user.id) ? 'You have already activated the attack interface.' : '',
-            this.turnEnded.has(user.id) ? `You are ready for action. Ability is \`${this.battle.playerTimeslots.get(user.id)?.[0]?.ability.name}\`.` : '',
+            this.turnEnded.has(user.id) ? `You are ready for action. Ability is \`${
+                this.battle.playerEntitiesList.find(e => e.base.id === user.id)?.getAction()?.name}\`` : ''
         ].filter(Boolean).join(' ');
 
         return new EmbedBuilder().setDescription(`You cannot make a selection. Reason: ${reasons || 'Unknown reason'}`);
@@ -152,8 +153,7 @@ class AttackInterface {
         const battle = this.actionRequest.battle;
         if (this.listener) this.listener.stop();
         this.ended = true;
-        battle.queueTimelineAbilities(
-            this.interface_itr.user.id,
+        this.initaitor.queueAction(
             this.selectedAbility ?? battle.newAbilityAtCurrentTime_get(AbilityName.Idle, { initiator: this.initaitor }));
         this.actionRequest.exit(this.interface_itr.user).then(() => {
             while (!this.interfacePromise_resolve) {}
@@ -324,18 +324,41 @@ class AttackInterface {
     }
 }
 
-class DealWithResult implements iDealWithResult {
+/**
+ * Represents the result of a battle.
+ * @implements iBattleResult
+ * @class
+ * @classdesc Represents the result of a battle.
+ * @param {Partial<iBattleResult>} d - The partial battle result data along with the required entities.
+ * @returns {BattleResult} A new instance of the BattleResult class.
+ * @example
+ * const result = new BattleResult({
+ *      desc: 'None',
+ *      initiatorDiff: [findDifference(initiator, vInitiator)],
+ *      targetDiff: [findDifference(target, vTarget)],
+ *      vInitiator: initiator.applyCurrentStatus(),
+ *      vTarget: target.applyCurrentStatus(),
+ *      initiator: initiator,
+ *      target: target,
+ * });
+ */
+class BattleResult implements iBattleResult {
     desc: string;
-    initiatorDiff: BeforeAfter
-    targetDiff: BeforeAfter
+    initiatorDiff: BeforeAfter;
+    targetDiff: BeforeAfter;
     vInitiator: iEntity;
     vTarget: iEntity;
     initiator: Entity;
     target: Entity;
-    constructor(d: Partial<iDealWithResult> & { vInitiator: iEntity, vTarget: iEntity, target: Entity, initiator: Entity }) {
+
+    /**
+     * Constructs a new instance of the BattleResult class.
+     * @param d - The partial battle result data along with the required entities.
+     */
+    constructor(d: Partial<iBattleResult> & { vInitiator: iEntity, vTarget: iEntity, target: Entity, initiator: Entity }) {
         this.desc = d.desc ?? 'None';
-        this.initiatorDiff = d.initiatorDiff ?? findDifference(d.initiator, d.vInitiator);
-        this.targetDiff = d.targetDiff ?? findDifference(d.target, d.vTarget);
+        this.initiatorDiff = d.initiatorDiff ?? [findDifference(d.initiator, d.vInitiator)];
+        this.targetDiff = d.targetDiff ?? [findDifference(d.target, d.vTarget)];
         this.vInitiator = d.vInitiator;
         this.vTarget = d.vTarget;
         this.initiator = d.initiator;
@@ -373,6 +396,7 @@ export class Entity implements iEntity {
 
     loc: Location = 'front';
     status: StatusEffect[] = [];
+    actionQueue: Ability[] = [];
     equippedWeapon: Weapon = defaultWeapon();
     equippedArmour: Armour = defaultArmour();
     botType: BotType = BotType.Enemy;
@@ -450,7 +474,6 @@ export class Entity implements iEntity {
                 Object.assign(virtualStats, this.applyStatus(s));
             }
         }
-
         return virtualStats;
     }
 
@@ -460,6 +483,28 @@ export class Entity implements iEntity {
 
     getFullName() {
         return `${this.name} <@${this.base.id}>`
+    }
+
+    shiftAction() {
+        return this.actionQueue.shift();
+    }
+    queueAction(ability: Ability) {
+        this.actionQueue.push(ability);
+    }
+
+    getState(time: number) {
+        const r = this.actionQueue.length > 0 ? getAbilityState(this.actionQueue[0], time) : TimeSlotState.Idle;
+        console.log(`【State】 ${this.name} / ${this.base.username}  @${time} with ${this.actionQueue[0]?.name} = ${r}`)
+        return r;
+    }
+
+    getAction(): Ability | null {
+        return this.actionQueue[0] ?? null;
+    }
+
+    updateActions(time: number) {
+        this.actionQueue = this.actionQueue.filter(a => a.getFinishTime() > time);
+        this.actionQueue.sort((a, b) => a.begin - b.begin);
     }
 }
 
@@ -486,9 +531,7 @@ export class Battle extends EventEmitter {
     };
 
     // Timeslotting
-    playerTimeslots = new Collection<string, TimeSlot[]>();
     time: number = -1;
-    timeslots: TimeSlot[] = []
 
     private constructor(c: BattleConfig, party: UserData[]) {
         super();
@@ -540,6 +583,20 @@ export class Battle extends EventEmitter {
         return battle;
     }
 
+    syncVirtualandActual(virtual: iEntity, actual: Entity) {
+        const diff = findDifference(virtual, actual.virtual());
+        console.log(`【Sync】 ${actual.name} / ${actual.base.username} with ${Object.entries(diff).map((d: any) => `${d[0]}: ${properPrint(d[1][0])} -> ${properPrint(d[1][1])}`).join(', ')} `);
+
+        actual.hp = virtual.hp;
+        actual.stamina = virtual.stamina;
+        actual.org = virtual.org;
+        actual.warSupport = virtual.warSupport;
+        actual.status = virtual.status.map(s => new StatusEffect(s));
+        actual.actionQueue = virtual.actionQueue.map(a => new Ability(Object.assign(a, { associatedBattle: this, initiator: a.initiator ?? actual })));
+        actual.pos = virtual.pos;
+        actual.loc = virtual.loc;
+    }
+
     //#region Team Management
     teamAssign(name: string, members: Entity[] = []) {
         const exist = this.teams.find(t => t.name === name);
@@ -588,7 +645,7 @@ export class Battle extends EventEmitter {
     public teamStatusDesc_get(team: Team) {
         const teamHeader = `## Team ${capitalize(team.name)}\n`
         const individualStatus = team.members.map(e => {
-            const entityState = this.entityTimeState_get(e.base.id || '');
+            const entityState = e.getState(this.time);
             const entityIsReady = entityState !== TimeSlotState.Idle && entityState !== TimeSlotState.Past;
             return `\n${entityIsReady ? '✅' : '❌'} **${e.name}** / ${this.userCache.get(e.base.id??'') || `\`${e.base.username}\``} [${e.loc}]`
         }).join('');
@@ -598,13 +655,6 @@ export class Battle extends EventEmitter {
     public newAbilityAtCurrentTime_get(name: AbilityName, options: Partial<Ability> & { initiator: Entity }) {
         return new Ability({ associatedBattle: this, name, begin: this.time, ...options })
     }
-
-    public entityTimeState_get(userid: string) {
-        const ts = this.playerTimeslots.get(userid)?.[0];
-        const con = ts ? getAbilityState(ts.ability, this.time) : TimeSlotState.Idle;
-        // console.log(`@${this.time}: ${userid} @ ${con} /with ${ts?.ability.name}`)
-        return con;
-    }
     //#endregion 
 
     //#region Ensurance
@@ -612,34 +662,21 @@ export class Battle extends EventEmitter {
         const form = this.battlefield.get(formation) || this.battlefield.set(formation, []).get(formation)!;
         return form;
     }
-    ensureTimeSlot(userId: string): TimeSlot[] {
-        if (!this.playerTimeslots.has(userId)) {
-            this.playerTimeslots.set(userId, []);
-        }
-        return this.playerTimeslots.get(userId)!;
-    }
     //#endregion
 
     //#region Timeslotting
-    queueTimelineAbilities(userid: string, ...ability: Ability[]) {
-        this.ensureTimeSlot(userid).push(...ability.map(a => {
-            return {
-                ability: a,
-                time: a.begin,
-            }
-        }));
-    }
     sortAndRemovePastTimelineAbilities() {
-        this.playerTimeslots = this.playerTimeslots.mapValues(v => v.sort((a, b) => a.time - b.time));
-        for (const playerID of this.playerTimeslots.keys()) {
-            while (this.entityTimeState_get(playerID) === TimeSlotState.Past) {
-                this.playerTimeslots.get(playerID)!.shift();
-            }
-        }
+        this.playerEntitiesList.forEach(e => {
+            e.updateActions(this.time);
+        })
     }
     advanceTime() {
         this.time++;
+        console.log(colors.bgRed(colors.redBright(`【Round】 ${this.time}`)));
         this.sortAndRemovePastTimelineAbilities();
+    }
+    getAbilityState(ability: Ability) {
+        return getAbilityState(ability, this.time);
     }
     //#endregion
     
@@ -648,139 +685,189 @@ export class Battle extends EventEmitter {
         console.log('【Begin】')
         if (this.time === -1) this.round();
     }
-    private dealWithWindupHit(initiator: Entity, target: Entity, ts: TimeSlot): DealWithResult {
-        const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
-        const abilityName = getRealAbilityName(ts.ability.name);
-        const targetAbilityName = targetTS?
-            `\`${getRealAbilityName(targetTS.ability.name)}\``:
-            'unknown ability'
+    private async requestAction(userID: string[]): Promise<unknown> {
+        console.log(`【Request Action】 Requesting action from ${userID.join(', ')}`)
+        return ActionRequest.Create(this, userID).then(ar => ar.setupInteractionCollector());
+    }
 
-        // hp hit
+    private dealWithWindupHit(initiator: Entity, target: Entity): BattleResult {
+        const ability = initiator.getAction();
+        const targetAbility = target.getAction();
+        if (!ability) return new BattleResult({ desc: 'No ability found', initiator, target, vInitiator: initiator.virtual(), vTarget: target.virtual() });
+        const abilityName = getRealAbilityName(ability.name)
+        const targetAbilityName = targetAbility?
+            `\`${getRealAbilityName(targetAbility.name)}\``:
+            '`IDLE`'
+
         console.log(`【Damage】 ${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is winding up ${targetAbilityName}!`)
-        const vInitiator = initiator.applyCurrentStatus();
-        const vTarget = target.applyCurrentStatus();
 
-        const d = damage(vInitiator, vTarget);
-        console.log(`【Damage】`, d)
-
-        vTarget.hp -= d.totalDamage;
-
-        const iniDiff = findDifference(target, vTarget);
-        const tarDiff = findDifference(target, vTarget);
-
-        return new DealWithResult({
-            desc: `${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is winding up!`,
-            initiatorDiff: iniDiff,
-            targetDiff: tarDiff,
-            vInitiator,
-            vTarget,
+        return new BattleResult({
+            desc: `${initiator.name+
+                initiator.base.username ?
+                    `/${initiator.base.username}`:
+                    ''
+            } hits ${target.name+
+                target.base.username ?
+                    `/${target.base.username}`:
+                    ''
+            } with ${abilityName} while ${target.name} is winding up!`,
             initiator,
             target,
+            ... attack(initiator, target, damage(initiator, target).totalDamage, 'hp'),
         })
     }
-    private dealWithRecoveryHit(initiator: Entity, target: Entity, ts: TimeSlot): DealWithResult {
-        const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
-        const abilityName = getRealAbilityName(ts.ability.name)
-        const targetAbilityName = targetTS?
-            `\`${getRealAbilityName(targetTS.ability.name)}\``:
-            'unknown ability'
+    private dealWithRecoveryHit(initiator: Entity, target: Entity): BattleResult {
+        const ability = initiator.getAction();
+        const targetAbility = target.getAction();
+        if (!ability) return new BattleResult({ desc: 'No ability found', initiator: initiator, target, vInitiator: initiator.virtual(), vTarget: target.virtual() });
+        const abilityName = getRealAbilityName(ability.name)
+        const targetAbilityName = targetAbility?
+            `\`${getRealAbilityName(targetAbility.name)}\``:
+            '`IDLE`'
 
-        // hp hit
-        console.log(`【Damage】 ${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is recovering from ${targetAbilityName}!`)
-        const vInitiator = initiator.applyCurrentStatus();
-        const vTarget = target.applyCurrentStatus();
+        console.log(`【Damage】 ${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is recoverying ${targetAbilityName}!`)
 
-        const d = damage(vInitiator, vTarget);
-        console.log(`【Damage】`, d)
-
-        vTarget.hp -= d.totalDamage;
-
-        return new DealWithResult({
-            desc: `${initiator.name} hits ${target.name} with ${abilityName} while ${target.name} is recovering!`,
-            initiatorDiff: findDifference(initiator, vInitiator),
-            targetDiff: findDifference(target, vTarget),
-            vInitiator,
-            vTarget,
+        return new BattleResult({
+            desc: `${initiator.name +
+                initiator.base.username ?
+                    `/${initiator.base.username}`:
+                    ''
+            } hits ${
+                target.name +
+                target.base.username ?
+                    `/${target.base.username}`:
+                    ''
+            } with ${abilityName} while ${target.name} is recovering!`,
             initiator,
             target,
+            ...attack(initiator, target, damage(initiator, target).totalDamage, 'hp'),
         })
     }
-    private dealWithClash(initiator: Entity, target: Entity, ts: TimeSlot): DealWithResult {
-        const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
-        const abilityName = getRealAbilityName(ts.ability.name)
-        const targetAbilityName = targetTS?
-            getRealAbilityName(targetTS.ability.name):
-            'unknown ability'
-
-        // clash, posture hit
+    private dealWithClash(initiator: Entity, target: Entity): BattleResult {
         console.log(`【Clash】 ${initiator.name} clashes with ${target.name}`)
-        const vInitiator = initiator.applyCurrentStatus();
-        const vTarget = target.applyCurrentStatus();
 
-        const d = damage(vInitiator, vTarget);
-        const postureDamage = (d.forceDamage * 0.65 + d.pierceDamage * 0.35)/10 * uniformRandom(0.95, 1.05);
-        console.log(`【Damage】`, d, postureDamage)
+        // SET UP CONSTANTS
+        const ability = initiator.getAction();
+        const targetAbility = target.getAction();
+        if (!ability) return new BattleResult({ desc: 'No ability found', initiator: initiator, target, vInitiator: initiator.virtual(), vTarget: target.virtual() });
+        const abilityName = getRealAbilityName(ability.name)
+        const targetAbilityName = targetAbility?
+            `\`${getRealAbilityName(targetAbility.name)}\``:
+            '`IDLE`'
 
-        vTarget.pos -= postureDamage;
+        let {
+            initiatorDiff,
+            targetDiff,
+            vInitiator,
+            vTarget,
+            value,
+        } = attack(initiator, target, dr => {
+            const postureDamage = (dr.forceDamage * 0.65 + dr.pierceDamage * 0.35) * uniformRandom(0.95, 1.05);
+            return postureDamage;
+        }, 'pos', true);
+        
+        console.log(`【Damage】${initiator.name} hits ${target.name} with ${abilityName}!`,
+            `${target.pos} - ${value} = ${vTarget.pos}`)
 
-        return new DealWithResult({
-            desc:
-                `${initiator.name} [${abilityName}]`+
-            " clashes with "+
-                `${target.name} [${targetAbilityName}]!`,
-            initiatorDiff: findDifference(initiator, vInitiator),
-            targetDiff: findDifference(target, vTarget),
+        // POSTURE BROKEN
+        if (vTarget.pos <= 0) {
+            // consequence 1: hp damage
+            const {
+                initiatorDiff: POSBRK_initiatorDiff,
+                targetDiff: POSBRK_targetDiff,
+                vInitiator: POSBRK_vInitiator,
+                vTarget: POSBRK_vTarget,
+            } =
+                attack(vInitiator, vTarget, damage(vInitiator, vTarget).totalDamage, 'hp', false)
+            initiatorDiff = initiatorDiff.concat(POSBRK_initiatorDiff);
+            targetDiff = targetDiff.concat(POSBRK_targetDiff);
+            vInitiator = POSBRK_vInitiator;
+            vTarget = POSBRK_vTarget;
+
+            // consequence 2: lose ability, go into recovery
+            vTarget.actionQueue.shift();
+            for (let i = 0; i < (targetAbility?.recovery??0) * 2; i++) {
+                vTarget.actionQueue.push(Ability.Recovering(
+                    this, target, (targetAbility?.recovery??0) + i
+                ))
+            }
+            
+            // consequence 3: posture reset
+            const oldValue = vTarget.pos;
+            const resetValue = maxPosture(target.base) / 2
+            vTarget.pos = resetValue;
+            console.log(`【Posture】${target.name}'s posture is reset!`, `${oldValue} -> ${resetValue}`)
+            // 3. THIRD RECORD OF DIFFERENCE: POSTURE BROKEN
+            targetDiff.push({
+                pos: [oldValue, resetValue]
+            })
+        }
+
+        const desc = `${initiator.name+(initiator.base.username?`/${initiator.base.username}`:'')} [${abilityName}]`+
+                        " clashes with "+
+                    `${target.name+(target.base.username?`/${target.base.username}`:'')} [${targetAbilityName}]!`;
+        return new BattleResult({
+            desc,
+            initiatorDiff,
+            targetDiff,
             vInitiator,
             vTarget,
             initiator,
             target,
         })
     }
-    private dealWithPlayerTimeslot(ts: TimeSlot, id: Snowflake): DealWithResult | null {
-        const initiator = ts.ability.initiator;
-        const target = ts.ability.target;
-        const initiatorState = this.entityTimeState_get(id);
-        const targetState = this.entityTimeState_get(target.base.id);
-        const targetTS = this.playerTimeslots.get(target.base.id)?.[0];
 
+    dealWithPlayerTimeslot(initiator: Entity): BattleResult | null {
+        const ability = initiator.getAction();
+        if (!ability) return null;
+
+        const target = ability.target;
+
+        const initiatorState = initiator.getState(this.time);
+        const targetState = target.getState(this.time);
+        const targetTS = target.getAction();
         if (!initiatorState || !targetState || !targetTS) return null;
-    
-        console.log(colors.bgGreen(`——— ${this.userCache.get(id)?.username} ———`))
 
+        const initiatorUser = this.userCache.get(initiator.base.id);
+        const targetUser = this.userCache.get(target.base.id);
+        const init_displayName = colors.green(initiatorUser?.username ?? initiator.name)
+        const target_displayName = colors.green(targetUser?.username ?? target.name)
+    
+        console.log(colors.bgGreen(`——— ${init_displayName} ———`))
         console.log(
-            `${Emoji.SWORD} ${colors.green(this.userCache.get(id)?.username ?? 'unknown')} `+
-            `${colors.underline(initiatorState)} [${ts.ability.name}]\n`+
-            `${Emoji.SHIELD} ${colors.green(this.userCache.get(target.base.id ?? '')?.username ?? 'unknown')} `+
-            `${colors.underline(targetState)} [${targetTS?.ability.name}]`
+            `${Emoji.SWORD} ${init_displayName} `+
+            `${colors.underline(initiatorState)} [${ability.name}]\n`+
+            `${Emoji.SHIELD} ${target_displayName} `+
+            `${colors.underline(targetState)} [${targetTS.name}]`
         );
 
-        ts.ability.confirm();       
+        ability.confirm();
         switch (initiatorState) {
             case TimeSlotState.Windup:
-                ts.ability.emit(AbilityTrigger.Windup, initiator, target, ts.ability);
-                return new DealWithResult({
-                    desc: `${initiator.name} is winding up ${getRealAbilityName(ts.ability.name)}.`,
+                ability.emit(AbilityTrigger.Windup, initiator, target, ability);
+                return new BattleResult({
+                    desc: `${initiator.name} is winding up ${getRealAbilityName(ability.name)}.`,
                     vInitiator: initiator.applyCurrentStatus(),
                     vTarget: target.applyCurrentStatus(),
                     initiator,
                     target,
                 })
             case TimeSlotState.Swing:
-                ts.ability.emit(AbilityTrigger.Swing, initiator, target, ts.ability);
+                ability.emit(AbilityTrigger.Swing, initiator, target, ability);
                 switch (targetState) {
                     case TimeSlotState.Windup:
-                        return this.dealWithWindupHit(initiator, target, ts);
+                        return this.dealWithWindupHit(initiator, target);
                     case TimeSlotState.Recovery:
-                        return this.dealWithRecoveryHit(initiator, target, ts);
+                        return this.dealWithRecoveryHit(initiator, target);
                     case TimeSlotState.Swing:
-                        return this.dealWithClash(initiator, target, ts);
+                        return this.dealWithClash(initiator, target);
                     default:
                         return null;
                 }
             case TimeSlotState.Recovery:
-                ts.ability.emit(AbilityTrigger.Recovery, initiator, target, ts.ability);
-                return new DealWithResult({
-                    desc: `${initiator.name} is recovering from ${getRealAbilityName(ts.ability.name)}.`,
+                ability.emit(AbilityTrigger.Recovery, initiator, target, ability);
+                return new BattleResult({
+                    desc: `${initiator.name} is recovering from ${getRealAbilityName(ability.name)}.`,
                     vInitiator: initiator.applyCurrentStatus(),
                     vTarget: target.applyCurrentStatus(),
                     initiator,
@@ -791,81 +878,30 @@ export class Battle extends EventEmitter {
         }
 
     }
-    private stringifyDifference(d: BeforeAfter, entity: Entity) {
-        const main = d.map((v, k) => {
-            console.log(k, v)
-            const v0 = v[0] as number;
-            const v1 = v[1] as number;
-            switch(k) {
-                case 'pos':
-                    return `${iEntityKeyEmoji[k]??Emoji.STATUS} ${Emoji.BOOM} ${(v1-v0).toFixed(3)}\n`+
-                        `${addHPBar({
-                            maxValue: maxPosture(entity.base),
-                            nowValue: v1 as number,
-                            reducedValue: v0 - v1,
-                            spiked: true
-                        })}`
-                case 'hp':
-                    return `${iEntityKeyEmoji[k]??Emoji.STATUS} ${Emoji.BOOM} ${(v1-v0).toFixed(3)}\n`+
-                        `${addHPBar({
-                            maxValue: maxHP(entity.base),
-                            nowValue: v1 as number,
-                            reducedValue: v0 - v1,
-                            spiked: true
-                        })}`
-                case 'status':
-                    return (v as [StatusEffect[], StatusEffect[]])[1]
-                        .map(s => `## ${s.emoji??Emoji.STATUS} ${entity.name} **${s.type}** [${s.duration}]`).join('\n');
-                default:
-                    return `${k}: ${v[0].toString()} -> ${v[1].toString()}`;
-            }
-        })
-            .join('\n');
-        
-        return main?
-            `# ${entity.getFullName()}: \n${main}\n`:
-            '';
-    }
-    private async requestAction(userID: string[]): Promise<unknown> {
-        console.log(`【Request Action】 Requesting action from ${userID.join(', ')}`)
-        return ActionRequest.Create(this, userID).then(ar => ar.setupInteractionCollector());
-    }
     private async round() {
         this.advanceTime();
-        console.log(colors.bgRed(colors.redBright(`【Round】 ${this.time}`)));
-        
         this.spawnUsers();
+        const idleUsers = this.playerEntitiesList.filter(e => e.getState(this.time) === TimeSlotState.Idle).map(e => e.base.id);
+        if (idleUsers.length > 0) await this.requestAction(idleUsers);
 
-        const idleUsers = this.userDataList.map(p => p.id).filter(id => this.entityTimeState_get(id) === TimeSlotState.Idle);
-        if (idleUsers.length > 0) {
-            await this.requestAction(idleUsers);
-        }
-
-        const roundEmbed = new EmbedBuilder()
-            .setTitle(`【Round ${this.time}】`)
-        console.log(`【Timeslots】 ${this.playerTimeslots.size}`)
-        for (const [id, timeslots] of this.playerTimeslots) {
-            let ts: TimeSlot | undefined = timeslots[0];
-            while (ts && getAbilityState(ts.ability, this.time) === TimeSlotState.Past) { ts = timeslots.shift(); }
-            if (ts) {
-                const r = this.dealWithPlayerTimeslot(timeslots[0], id)
-                if (!r) continue;
-                
-                const { desc, initiatorDiff, targetDiff, vInitiator, vTarget, initiator, target } = r;
-                roundEmbed.setDescription(
-                    `${(roundEmbed.data.description??'')}\n`+
-                    `\`\`\` ${desc} \`\`\`\n`+
-                    `${this.stringifyDifference(initiatorDiff, initiator)}`+
-                    `${this.stringifyDifference(targetDiff, target)}`
-                );
-
-                syncVirtualandActual(vInitiator, initiator);
-                if (target !== initiator) syncVirtualandActual(vTarget, target);
-            }
-            else {
-                await this.requestAction([id]);
+        console.log(`【Timeslots】`)
+        const roundEmbed = new EmbedBuilder().setTitle(`【Round ${this.time}】`)
+        
+        const battleResults = [];
+        for (const entity of this.playerEntitiesList) {
+            console.log(`【${entity.name}】`)
+            const r = this.dealWithPlayerTimeslot(entity);
+            if (r) {
+                console.log(`【Deal With Result】 ${r.desc}`)
+                updateRoundEmbed(roundEmbed, r);
+                battleResults.push(r);
             }
         }
+        for (const r of battleResults) {
+            this.syncVirtualandActual(r.vInitiator, r.initiator);
+            this.syncVirtualandActual(r.vTarget, r.target);
+        }
+
         this.channel.send({ embeds: [roundEmbed] });
         
         setTimeout(() => {
@@ -874,3 +910,5 @@ export class Battle extends EventEmitter {
     }
     //#endregion
 }
+
+

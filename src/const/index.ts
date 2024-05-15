@@ -55,6 +55,8 @@ export enum Emoji {
     EARTH = '🌍',
     RED_SIGN = '🚫',
     THINKING = '🤔',
+    DOUBLE_EXCLAMATION = '‼️',
+    SPARKLES = '✨',
 }
 
 export enum iEntityKeyEmoji {

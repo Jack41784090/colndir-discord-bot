@@ -1,5 +1,8 @@
 import bot from "@bot";
-import { BUSS_SERVERID } from "@constants";
+import { Ability } from "@classes/Ability";
+import { Battle } from "@classes/Battle";
+import { IKE_USERID, MERC_USERID } from "@constants";
+import { AbilityName } from "@ctypes";
 import { Colors, EmbedBuilder, EmbedData, ForumChannel, GuildForumTag, Message, TextBasedChannel, ThreadChannel } from "discord.js";
 import ytdl from "ytdl-core";
 
@@ -225,10 +228,39 @@ async function post(testPOst: ThreadChannel, newSigurd: ForumChannel, tag: Guild
     })
 }
 export async function TestFunction() {
-    const guild = await bot.guilds.fetch(BUSS_SERVERID)
-    const onboard = await guild.fetchOnboarding();
+    const ike = await bot.users.fetch(IKE_USERID);
+    const merc = await bot.users.fetch(MERC_USERID)
+    const b = await Battle.Create({
+        channel: await bot.channels.fetch('1232126725039587389') as TextBasedChannel,
+        users: [merc, ike],
+        teamMapping: {
+            [merc.id]: "Merc",
+            [ike.id]: "Ike",
+        },
+    })
 
-    console.log(onboard)
+    b.spawnUsers();
+    
+    const a1 = new Ability({
+        associatedBattle: b,
+        name: AbilityName.Stab,
+        initiator: b.playerEntitiesList.find(e => e.base.id === MERC_USERID)!,
+        target: b.playerEntitiesList.find(e => e.base.id ===  IKE_USERID)!,
+        begin: 0,
+    });
+    const a2 = new Ability({
+        associatedBattle: b,
+        name: AbilityName.Slash,
+        initiator: b.playerEntitiesList.find(e => e.base.id === IKE_USERID)!,
+        target: b.playerEntitiesList.find(e => e.base.id === MERC_USERID),
+        begin: 0,
+    });
+
+    const p1 = b.playerEntitiesList.find(e => e.base.id === MERC_USERID)!;
+    const p2 = b.playerEntitiesList.find(e => e.base.id === IKE_USERID)!;
+    p1.queueAction(a1); p2.queueAction(a2);
+
+    b.begin();
 }
 
 export function isSubset<T>(_superset: Set<T>, _subset: Set<T>): boolean;
@@ -249,6 +281,23 @@ export function getLoadingEmbed() {
         })
         .setTitle("Now Loading...");
     return loadingEmbed;
+}
+
+export function getConditionalTexts(text: string, condition: boolean): string {
+    return condition ?
+        text:
+        '';
+}
+
+export function getWithSign(number: number) {
+    return getConditionalTexts("+", number > 0) + getConditionalTexts("-", number < 0) + `${Math.abs(number)}`;
+}
+
+export function properPrint(thing: any) {
+    const typeofThing = typeof thing;
+    if (typeofThing === 'string') return `"${thing}"`;
+    if (typeofThing === 'object') return JSON.stringify(thing, null, 2);
+    return thing?.toString() ?? thing;
 }
 
 export * from './add-to-team';
