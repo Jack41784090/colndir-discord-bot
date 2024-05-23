@@ -1,24 +1,10 @@
 import bot from "@bot";
+import { GuildProfile, ProfileInteractionType, ProfileManager } from "@classes/InteractionHandler";
 import { DESCRIPTION_LIMIT, DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, FIELD_VALUE_LIMIT, GOOGLEDOCS_REGEX, HOUR } from "@constants";
 import { ColndirCharacter } from "@ctypes";
-import { GetData, GetDefaultUserData, SaveData, capitalize, formalise, getConsecutiveMessages, getGoogleDocImage } from "@functions";
-import { CategoryChannel, ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, GuildForumThreadMessageCreateOptions, Message, TextChannel, ThreadChannel, User } from "discord.js";
+import { capitalize, formalise, getConsecutiveMessages, getGoogleDocImage } from "@functions";
+import { ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, Message, TextChannel, ThreadChannel, User } from "discord.js";
 
-async function ensureForum(guild: Guild): Promise<string | ForumChannel> {
-    const channels = await guild.channels.fetch();
-    if (channels === undefined) return 'Error: Could not fetch channels.';
-    const category = channels.find(c => c?.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'character rp category') as CategoryChannel;
-    if (category === undefined) return 'Error: Could not find "ColndirCharacter RP Category" category.';
-    const forum = channels.find(c => c?.type === ChannelType.GuildForum && c.name === 'character-list') as ForumChannel || await guild.channels.create({
-        parent: category,
-        type: ChannelType.GuildForum,
-        name: 'character-list'
-    }) as ForumChannel;
-    if (forum == undefined) {
-        return 'Error: Could not find or create "character-list" forum.';            
-    }
-    return forum;
-}
 
 async function ensureMemberSpecificEmoji(emoji_server: Guild) {
     console.log('Fetching members');
@@ -76,42 +62,69 @@ export async function updateOldTags(forum: ForumChannel) {
     }
 }
 
-export async function register(guild: Guild, concerning_user: User, character: ColndirCharacter, original_message?: Message, ping: boolean = true) {
-    
-    // 1. Check if character is already registered
-    const uinfo = await GetData("User", concerning_user.id) || GetDefaultUserData();
-    const chars: ColndirCharacter[] = uinfo['characters'];
-    let c: ColndirCharacter | undefined;
-    if (chars && (c = chars.find(c => c.NAME === character.NAME))) {
-        return 'Error: ColndirCharacter is already registered under: ' + c['thread'];
+async function ensureForum(guild: Guild): Promise<Error | ForumChannel> {
+    const channels = await guild.channels.fetch();
+    if (channels === undefined) {
+        return new Error('Error: Could not fetch channels.');
+    }
+    const forum = channels.find(c => c?.type === ChannelType.GuildForum && c.name === 'character-list') as ForumChannel || await guild.channels.create({
+        type: ChannelType.GuildForum,
+        name: 'character-list'
+    }) as ForumChannel;
+    if (forum === undefined) {
+        return new Error('Error: Could not create forum.');            
+    }
+    return forum;
+}
+
+export async function register({ guild, concerningUser, character, originalMessage, ping = true }: {
+    guild: Guild,
+    concerningUser: User,
+    character: ColndirCharacter,
+    originalMessage: Message,
+    ping?: boolean}
+) {
+    // 1. Check if character is already registered in the guild
+    const registerCommandGDAccess = await ProfileManager.Register(guild.id, ProfileInteractionType.DefaultGuild);
+    if (registerCommandGDAccess instanceof Error) {
+        return registerCommandGDAccess;
+    }
+
+    const guildData = (registerCommandGDAccess.profile as GuildProfile).guildData;
+    const chars: ColndirCharacter[] = guildData.registeredCharacters;
+    const existing = chars.find(c => c.NAME === character.NAME);
+    if (existing) {
+        const link = existing.thread.match(/https:\/\/discord\.com\/channels\/\d+\/\d+/i)?.[0];
+        if (link) {
+            const [ , , , , , channelID ] = link.split('/');
+            const channel = await guild.channels.fetch(channelID);
+            if (channel instanceof ThreadChannel) {
+                return new Error (`Character ${character.NAME} is already registered in ${link}.`);
+            }
+        }
     }
 
     // 2. Get/create forum
     console.log('Getting/creating forum');
     const forum = await ensureForum(guild);
-    if (typeof forum === 'string') return formalise(forum);
-
-    // 3. Emoji
-    // const emoji_map = await ensureMemberSpecificEmoji(guild);
-        
-    // 4. Get Tag
-    // const tag = await createUserTag(forum, concerning_user);
-
-    // 5. Update older tags
+    if (forum instanceof Error) {
+        return forum;
+    }
 
     // 6. Deal with Embeds
     console.log('Creating embed');
-    const separated_embeds: EmbedBuilder[] = [];
+    const separatedEmbeds: EmbedBuilder[] = [];
     const embed = new EmbedBuilder();
     for (const k of Object.keys(character)) {
         const key = k as keyof ColndirCharacter;
         const value = character[key];
-        if (value && value.length <= FIELD_VALUE_LIMIT) {
+        if (!value) continue;
+        // Discord field value limit is 1024 characters.
+        if (value.length <= FIELD_VALUE_LIMIT) {
             switch (key) {
-                case 'NAME': {
+                case 'NAME': 
                     embed.setTitle(value);
                     break;
-                }
                 case 'ALIGNMENT':
                     embed.addFields({
                         name: formalise(k),
@@ -126,65 +139,70 @@ export async function register(guild: Guild, concerning_user: User, character: C
                     break;
             }
         }
-        else if (value) {
-            if (value.length <= DESCRIPTION_LIMIT) {
+        // if the value is too long, send it in a separate message.
+        else if (value.length <= DESCRIPTION_LIMIT) {
+            const newEmbed = new EmbedBuilder();
+            newEmbed.setTitle(formalise(key));
+            newEmbed.setDescription(`${capitalize(value)}\n`);
+            separatedEmbeds.push(newEmbed);
+        }
+        // if it's still too long, split it into multiple messages. Each message's limit is 4096 characters.
+        else {
+            const split = value.match(new RegExp(`.{1,${DESCRIPTION_LIMIT}}`, 'g'));
+            if (split === null) continue;
+            split.forEach((s, i) => {
                 const newEmbed = new EmbedBuilder();
-                newEmbed.setTitle(formalise(key));
-                newEmbed.setDescription(`${capitalize(value)}\n`);
-                separated_embeds.push(newEmbed);
-            }
-            else {
-                const split = value.match(new RegExp(`.{1,${DESCRIPTION_LIMIT}}`, 'g'));
-                if (split === null) continue;
-                split.forEach((s, i) => {
-                    const newEmbed = new EmbedBuilder();
-                    if (i === 0) {
-                        newEmbed.setTitle(formalise(key));
-                    }
-                    newEmbed.setDescription(`${capitalize(s)}\n`);
-                    separated_embeds.push(newEmbed);
-                })
-            }
+                if (i === 0) {
+                    newEmbed.setTitle(formalise(key));
+                }
+                newEmbed.setDescription(`${capitalize(s)}\n`);
+                separatedEmbeds.push(newEmbed);
+            })
         }
     }
 
     // 7. Create Post
     console.log('Creating thread');
-    const m: GuildForumThreadMessageCreateOptions = {
-        embeds: [embed]
-    };
-    if (ping) {
-        m['content'] = `<@${concerning_user.id}>`;
-    }
-    const thread = await forum.threads.create({
+    const post = await forum.threads.create({
         name: character['NAME'] || 'character',
         autoArchiveDuration: 1440,
-        message: m
+        message: {
+            embeds: [embed],
+            content: ping ? `<@${concerningUser.id}>` : undefined
+        }
     });
-    character['thread'] = thread.url;
-    separated_embeds.forEach(e => thread.send({ embeds: [e] }));
-    if (original_message) {
-        // original_message.sort((a,b) => a.createdTimestamp - b.createdTimestamp);
-        await thread.send({
+    separatedEmbeds.forEach(e => post.send({ embeds: [e] }));
+    if (originalMessage) {
+        await post.send({
             embeds: [
                 new EmbedBuilder({
-                    title: `original message: ${original_message.url}`,
-                    timestamp: original_message.createdTimestamp
+                    title: `original message: ${originalMessage.url}`,
+                    timestamp: originalMessage.createdTimestamp
                 })
             ]
         })
     }
-    const thumbnailSearchResult = await updateCharacterPost(thread);
-    if (typeof thumbnailSearchResult === 'string') {
+
+    // 8. Find a Thumbnail for the post
+    const thumbnailSearchResult = await updateCharacterPost(post);
+    if (thumbnailSearchResult) {
         console.log(thumbnailSearchResult);
     }
 
     // 8. Save to Database
     console.log('Updating database');
-    uinfo.characters.push(character);
-    await SaveData("User", concerning_user.id, uinfo);
+    character['thread'] = post.url;
+    character['guildID'] = guild.id;
+    character['userID'] = concerningUser.id;
+    guildData.registeredCharacters.push(character);
 
-    return thread;
+    const tempUDAccess = await ProfileManager.UserData(concerningUser.id);
+    if (tempUDAccess) {
+        tempUDAccess.characters.push(character.NAME);
+        await ProfileManager.SaveUserData(concerningUser.id, tempUDAccess);
+    }
+
+    return post;
 }
 
 export async function updateCharacterPost(threadChannel: ThreadChannel) {

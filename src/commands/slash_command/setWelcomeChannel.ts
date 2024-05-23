@@ -1,7 +1,7 @@
 import { GuildData } from '@ctypes';
-import { SaveGuildData } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
+import { ProfileManager } from '../../class/InteractionHandler';
 
 export class SetWelcomeCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -31,7 +31,7 @@ export class SetWelcomeCommand extends Command {
             const message = interaction.options.getString('message');
             const gd: Partial<GuildData> = { welcomeChannelID: interaction.channel?.id };
             if (message) gd.welcomeMessage = message;
-            await SaveGuildData(interaction.guildId, gd);
+            await ProfileManager.SaveGuildData(interaction.guildId, gd);
             return interaction.editReply(`Welcome message set to: ${message??'none'}`);
         }
 

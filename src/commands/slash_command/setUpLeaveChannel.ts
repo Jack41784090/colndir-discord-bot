@@ -1,5 +1,5 @@
+import { ProfileManager } from '@classes/InteractionHandler';
 import { GuildData } from '@ctypes';
-import { SaveGuildData } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
 
@@ -31,7 +31,7 @@ export class SetLeaveCommand extends Command {
             const message = interaction.options.getString('message');
             const gd: Partial<GuildData> = { leaveChannelID: interaction.channel?.id };
             if (message) gd.leaveMessage = message;
-            await SaveGuildData(interaction.guildId, gd);
+            await ProfileManager.SaveGuildData(interaction.guildId, gd);
             return interaction.editReply(`Leave message set to: ${message??'none'}`);
         }
 

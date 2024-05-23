@@ -1,5 +1,5 @@
 import { HOUR } from '@constants';
-import { cosineSimilarity, extractDiscordLinks, fetchContent, fetchForumPosts, getPostMessage, TestFunction, textToVector, updateCharacterPost } from '@functions';
+import { cosineSimilarity, extractDiscordLinks, fetchContent, getAllChannelThreads, getPostMessage, TestFunction, textToVector, updateCharacterPost } from '@functions';
 import { Events, Listener } from '@sapphire/framework';
 import { ChannelType, ForumChannel, Message, TextChannel, ThreadChannel, type Client } from 'discord.js';
 import bot from '../bot';
@@ -54,7 +54,7 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
             }
 
             // 2.2 Get all posts
-            const posts = await fetchForumPosts(forum);
+            const posts = await getAllChannelThreads(forum);
             for (let j = 0; j < posts.length; j++) {
                 const p = posts[j];
                 await this.updateLinks(p as ThreadChannel)
@@ -138,7 +138,7 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
                     const cacheID = post.parentId || post.guild.id;
                     const relevantPost =
                         this.updateLinks_postsCache[cacheID]||
-                        (this.updateLinks_postsCache[cacheID] = await fetchForumPosts(post.parent as ForumChannel));
+                        (this.updateLinks_postsCache[cacheID] = await getAllChannelThreads(post.parent as ForumChannel));
                     if (!relevantPost || relevantPost.length < 0) {
                         console.log(`||=> No relevant posts found for ${post.name} in ${post.guild.name}`, cacheID)
                         continue;
@@ -179,6 +179,8 @@ export class ReadyListener extends Listener<typeof Events.ClientReady> {
     public async run(client: Client) {
         const { username, id } = client.user!;
         this.container.logger.info(`Successfully logged in as ${username} (${id})`);
+        const commands = await client.application?.commands.fetch();
+        this.container.logger.info(`Slash commands: ${commands?.map(c => c.name).join(', ') || 'None'}`);
         TestFunction();
         // this.loreChannelsUpdate();
 

@@ -1,7 +1,7 @@
 import bot from "@bot";
-import { GetGuildData } from "@functions";
 import { Canvas } from "canvas";
 import { ActionRowBuilder, ActionRowData, AttachmentBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder, Guild, GuildMember, Interaction, MessageCreateOptions, Role, TextBasedChannel, TextChannel } from "discord.js";
+import { ProfileManager } from "./InteractionHandler";
 
 //#region Canvas
 class Square {
@@ -166,7 +166,7 @@ export class RoleManagement {
     private constructor() {}
 
     public async checkExistingRoleChannel(serverID: string) {
-        const data = await GetGuildData(serverID);
+        const data = await ProfileManager.GuildData(serverID);
         return data ? await bot.channels.fetch(data.roleChannelID) : null;
     }
 

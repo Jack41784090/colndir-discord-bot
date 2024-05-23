@@ -1,11 +1,12 @@
 import bot from "@bot";
 import { Emoji, INTERFACE_PERSIST_TIME, INTERFACE_REFRESH_TIME } from "@constants";
 import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BeforeAfter, BotType, EntityConstance, EntityInitRequirements, iBattleResult, iEntity, Location, StatusEffectApplyType, StatusEffectType, TimeSlotState, UserData, Weapon } from "@ctypes";
-import { addHPBar, attack, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, GetCombatCharacter, getLoadingEmbed, getRealAbilityName, GetUserData, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, properPrint, setUpInteractionCollect, stringifyAbility, uniformRandom, updateRoundEmbed, virtual } from "@functions";
+import { addHPBar, attack, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, getLoadingEmbed, getRealAbilityName, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, properPrint, setUpInteractionCollect, stringifyAbility, uniformRandom, updateRoundEmbed, virtual } from "@functions";
 import colors from 'ansi-colors';
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, Collection, EmbedBuilder, Interaction, InteractionCollector, InteractionResponse, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
 import { EventEmitter } from "events";
 import { Ability, StatusEffect } from "./Ability";
+import { GetCombatCharacter, ProfileManager } from "./InteractionHandler";
 
 class ActionRequest {
     private interfaceMessage: Message | null;
@@ -547,10 +548,10 @@ export class Battle extends EventEmitter {
      */
     static async Create(c: BattleConfig): Promise<Battle> {
         // 1. Get from Database the UserData of each player
-        const party = c.users.map(u => GetUserData(u.id));
+        const party = c.users.map(u => ProfileManager.UserData(u.id));
 
         // 2. Create a new Battle instance and inject the players into the party argument
-        const battle = new Battle(c, await Promise.all(party));
+        const battle = new Battle(c, await Promise.all(party).then(c => c.filter(x => x !== null) as UserData[]));
         
         // 3. Get from Database the CombatCharacter of each player
         const fighters = await Promise.all(

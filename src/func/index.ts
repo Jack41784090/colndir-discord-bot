@@ -1,6 +1,7 @@
 import bot from "@bot";
-import { NOAH_USERID, NORM_CHAR_LIMIT } from "@constants";
-import { Channel, ChannelType, Colors, EmbedBuilder, EmbedData, ForumChannel, GuildForumTag, Message, MessageCreateOptions, PublicThreadChannel, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
+import { ProfileInteractionType, ProfileManager } from "@classes/InteractionHandler";
+import { COLNDIR_SERVERID, NORM_CHAR_LIMIT } from "@constants";
+import { AnyThreadChannel, BaseGuildTextChannel, BaseMessageOptions, CategoryChannel, Channel, ChannelType, Colors, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildForumTag, Message, MessageCreateOptions, NonThreadGuildBasedChannel, TextBasedChannel, TextChannel, ThreadChannel, VoiceBasedChannel } from "discord.js";
 import ytdl from "ytdl-core";
 
 export function capitalize(string: string): string {
@@ -34,11 +35,16 @@ export function getErrorEmbed(message: string, options?: Partial<EmbedData>) {
     const b: EmbedData = {
         title: "Warning!",
         footer: {
-            text: message
+            text: message ?? "Error encountered."
         },
         color: Colors.Red
     };
     return new EmbedBuilder(Object.assign(b, options))
+}
+export function getErrorMessage(message: string, options?: Partial<EmbedData>): BaseMessageOptions {
+    return {
+        embeds: [getErrorEmbed(message, options)]
+    }
 }
 export function getGreenflagEmbed(message: string, options?: Partial<EmbedData>) {
     const b: EmbedData = {
@@ -97,24 +103,49 @@ export async function getAllMessages(submissionChannel: TextBasedChannel) {
     console.log(`Fetched ${messages.length} messages`)
     return messages;
 }
-export async function getAllArchivedThreads(forum: ForumChannel) {
-    const fetch100 = async (before?: string) => {
-        const messages = await forum.threads.fetchArchived({
-            before: before || undefined,
-            limit: 100,
-        }).then(ms => Array.from(ms.threads.values()).reverse());
-        return messages
+export async function getAllArchivedThreads(channel: Exclude<NonThreadGuildBasedChannel, CategoryChannel | VoiceBasedChannel>): Promise<AnyThreadChannel[]> {
+    let lastThreadId: string | undefined = undefined;
+    const posts: AnyThreadChannel[] = [];
+
+    while (true) {
+        const fetchedThreads: AnyThreadChannel[] = await channel.threads.fetchArchived({
+            before: lastThreadId,
+            limit: 100
+        }).then(threads => Array.from(threads.threads.values()));
+
+        if (fetchedThreads.length === 0) {
+            break;
+        }
+
+        posts.push(...fetchedThreads);
+        lastThreadId = fetchedThreads[fetchedThreads.length - 1].id; // Update the last thread ID for pagination
+
+        if (fetchedThreads.length < 100) {
+            break; // If fewer than 100 threads are returned, it means we've fetched the last page
+        }
     }
-    const posts: ThreadChannel[] = [];
-    let fetched = await fetch100();
-    while (fetched.length === 100) {
-        posts.push(...fetched);
-        fetched = await fetch100(fetched[0].id);
-    }
-    posts.push(...fetched);
-    posts.sort((a, b) => (a.createdTimestamp??0) - (b.createdTimestamp??0));
-    console.log(`Fetched ${posts.length} posts`)
+
+    // Ensure posts are sorted by creation timestamp
+    posts.sort((a, b) => (a.createdTimestamp ?? 0) - (b.createdTimestamp ?? 0));
     return posts;
+}
+export async function getAllChannelThreads(channel: Exclude<NonThreadGuildBasedChannel, CategoryChannel | VoiceBasedChannel>) {
+    const fetchedActives = await channel.threads.fetchActive();
+    const fetchedArchivesPublic = await getAllArchivedThreads(channel as ForumChannel)
+    const total = [...Array.from(fetchedActives.threads.values()), ...Array.from(fetchedArchivesPublic.values()),]
+    console.log(`Fetched ${total.length} threads`)
+    return total;
+}
+export async function getAllThreads(guild: Guild) {
+    const threads: AnyThreadChannel[] = [];
+    const allChannels = await guild.channels.fetch();
+    for (const [id, c] of allChannels) {
+        if (!c?.isTextBased() || !(c instanceof BaseGuildTextChannel)) continue;
+        const channel = c;
+        const fetched = await getAllChannelThreads(channel);
+        threads.push(...fetched);
+    }
+    return threads;
 }
 
 export function getPromiseStatus(p: Promise<unknown>): Promise<'pending' | 'fulfilled' | 'rejected'> {
@@ -229,7 +260,6 @@ export function levenshteinDistance(s1: string, s2: string): number {
     return arr[s2.length];
 }
 
-
 export function extractDiscordLinks(text: string): string[] {
     const regex = /https:\/\/discord\.com\/channels\/\d+\/\d+(\/\d+)?/g;
     return [...text.matchAll(regex)].map(match => match[0]);
@@ -244,13 +274,6 @@ export function extractYouTubeID(url: string) {
     const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
-}
-
-export async function fetchForumPosts(forum: ForumChannel) {
-    return forum.threads.fetch().then(async posts => {
-        const archived = await getAllArchivedThreads(forum);
-        return [...Array.from(posts.threads.values()), ...Array.from(archived.values())];
-    });
 }
 
 export async function getVideoInfo(youtubeLink: string) {
@@ -270,41 +293,41 @@ export async function getVideoInfo(youtubeLink: string) {
 }
 
 async function move(oldForum: ForumChannel, newForum: ForumChannel) {
-    const posts = await oldForum.threads.fetch();
-    const archived = await getAllArchivedThreads(oldForum);
-    const newForumPosts = (await newForum.threads.fetch()).threads.concat((await newForum.threads.fetchArchived()).threads);
+    // const posts = await oldForum.threads.fetch();
+    // const archived = await getAllForumArchivedPosts(oldForum);
+    // const newForumPosts = (await newForum.threads.fetch()).threads.concat((await newForum.threads.fetchArchived()).threads);
 
-    // console.log(`Old Major: ${posts.threads.map(p => p.name).join(", ")}`)
-    // console.log(`Old Minor: ${archived.map(p => p.name).join(", ")}`)
+    // // console.log(`Old Major: ${posts.threads.map(p => p.name).join(", ")}`)
+    // // console.log(`Old Minor: ${archived.map(p => p.name).join(", ")}`)
 
-    const minorLoreTag = newForum.availableTags.find(t => t.name.toLowerCase().includes('minor lore'))!;
-    const majorLoreTag = newForum.availableTags.find(t => t.name.toLowerCase().includes('major lore'))!;
+    // const minorLoreTag = newForum.availableTags.find(t => t.name.toLowerCase().includes('minor lore'))!;
+    // const majorLoreTag = newForum.availableTags.find(t => t.name.toLowerCase().includes('major lore'))!;
 
-    if (!minorLoreTag || !majorLoreTag) {
-        console.error(`forum ${newForum.name} has no ${minorLoreTag ? 'major' : 'minor'} lore tag`);
-        return;
-    }
+    // if (!minorLoreTag || !majorLoreTag) {
+    //     console.error(`forum ${newForum.name} has no ${minorLoreTag ? 'major' : 'minor'} lore tag`);
+    //     return;
+    // }
     
-    const major = posts.threads
-        .filter(p => p.appliedTags.length > 0&&
-            !newForumPosts.some(p2 => p2.name === p.name))
-    const minor = archived
-        .filter(p => p.appliedTags.length > 0 &&
-            !newForumPosts.some(p2 => p2.name === p.name)
-        )
+    // const major = posts.threads
+    //     .filter(p => p.appliedTags.length > 0&&
+    //         !newForumPosts.some(p2 => p2.name === p.name))
+    // const minor = archived
+    //     .filter(p => p.appliedTags.length > 0 &&
+    //         !newForumPosts.some(p2 => p2.name === p.name)
+    //     )
 
-    console.log(`Major: ${major.map(p => p.name).join(", ")}`)
-    console.log(`Minor: ${minor.map(p => p.name).join(", ")}`)
+    // console.log(`Major: ${major.map(p => p.name).join(", ")}`)
+    // console.log(`Minor: ${minor.map(p => p.name).join(", ")}`)
 
-    const all: Promise<unknown>[] = [];
-    major.forEach(p => {
-        all.push(post(p, newForum, majorLoreTag, false));
-    })
-    minor.forEach(p => {
-        all.push(post(p, newForum, minorLoreTag, true));
-    })
+    // const all: Promise<unknown>[] = [];
+    // major.forEach(p => {
+    //     all.push(post(p, newForum, majorLoreTag, false));
+    // })
+    // minor.forEach(p => {
+    //     all.push(post(p, newForum, minorLoreTag, true));
+    // })
 
-    return Promise.all(all);
+    // return Promise.all(all);
 }
 async function post(post: ThreadChannel, newForum: ForumChannel, tag: GuildForumTag, archive: boolean) {
     const messages = Array.from((await post.messages.fetch()).values()).reverse();
@@ -438,6 +461,12 @@ export async function fetchContent(url: string): Promise<Message | Channel | nul
     }
 }
 export async function TestFunction() {
+    const event = await ProfileManager.Register(COLNDIR_SERVERID, ProfileInteractionType.DefaultGuild);
+    console.log(event);
+    // const estiaForum = await bot.channels.fetch(NEWESTIA_NEWFORUMID);
+    // const allposts = await getAllChannelThreads(estiaForum as ForumChannel);
+    // console.log(allposts.map(p => p.name).join(", "));
+
     // const ike = await bot.users.fetch(IKE_USERID);
     // const merc = await bot.users.fetch(MERC_USERID)
     // const b = await Battle.Create({
@@ -472,57 +501,56 @@ export async function TestFunction() {
 
     // b.begin();
     
-    const oldEstia = await bot.channels.fetch('1203824119490289705') as ForumChannel;
-    const newSigurd = await bot.channels.fetch('1238766847558549634') as ForumChannel;
-    const existingNewPosts = await fetchForumPosts(newSigurd);
+    // const oldEstia = await bot.channels.fetch('1203824119490289705') as ForumChannel;
+    // const newSigurd = await bot.channels.fetch('1238766847558549634') as ForumChannel;
+    // const existingNewPosts = await getAllChannelThreads(newSigurd);
 
-    const allPosts = await fetchForumPosts(oldEstia);
-    const noTagsPosts = allPosts.filter(p => p.appliedTags.length === 0); // posts made by Noah
-    for (const p of noTagsPosts) {
-        if (existingNewPosts.find(xp => xp.name === p.name)) {
-            continue;
-        }
-        const allMessages = await getAllMessages(p as PublicThreadChannel)
-        const likelyLoreMessages = allMessages.filter(m =>
-            m.author.id === NOAH_USERID
-            &&m.mentions.users.size === 0
-            &&(m.content.length > 250
-                ||(m.attachments.size > 0 && m.content.length > 50)
-                ||m.content.startsWith("**")
-                ||m.content.startsWith("`")
-            )
-        );
-        console.log(`Post ${p.name} likely lore messages: ${likelyLoreMessages.length}`)
-        for (const m of likelyLoreMessages) {
-            const splittedContent = m.content.split('\n');
-            let proposedTitle: string | undefined;
-            while ((proposedTitle = splittedContent.shift()) !== undefined) {
-                const nonLetterMatches = proposedTitle.replace(/[`#*\[\]{}'"<>\/?\\|@#$%^&()_+=-]/g, '').split(' ').filter(s => s.length > 0);
-                // console.log(nonLetterMatches, nonLetterMatches.length)
-                if (nonLetterMatches && nonLetterMatches.length > 0) {
-                    proposedTitle = nonLetterMatches.join(' ');
-                    break;
-                }
-            }
+    // const allPosts = await getAllChannelThreads(oldEstia);
+    // const noTagsPosts = allPosts.filter(p => p.appliedTags.length === 0); // posts made by Noah
+    // for (const p of noTagsPosts) {
+    //     if (existingNewPosts.find(xp => xp.name === p.name)) {
+    //         continue;
+    //     }
+    //     const allMessages = await getAllMessages(p as PublicThreadChannel)
+    //     const likelyLoreMessages = allMessages.filter(m =>
+    //         m.author.id === NOAH_USERID
+    //         &&m.mentions.users.size === 0
+    //         &&(m.content.length > 250
+    //             ||(m.attachments.size > 0 && m.content.length > 50)
+    //             ||m.content.startsWith("**")
+    //             ||m.content.startsWith("`")
+    //         )
+    //     );
+    //     console.log(`Post ${p.name} likely lore messages: ${likelyLoreMessages.length}`)
+    //     for (const m of likelyLoreMessages) {
+    //         const splittedContent = m.content.split('\n');
+    //         let proposedTitle: string | undefined;
+    //         while ((proposedTitle = splittedContent.shift()) !== undefined) {
+    //             const nonLetterMatches = proposedTitle.replace(/[`#*\[\]{}'"<>\/?\\|@#$%^&()_+=-]/g, '').split(' ').filter(s => s.length > 0);
+    //             // console.log(nonLetterMatches, nonLetterMatches.length)
+    //             if (nonLetterMatches && nonLetterMatches.length > 0) {
+    //                 proposedTitle = nonLetterMatches.join(' ');
+    //                 break;
+    //             }
+    //         }
 
-            console.log(`Message ${m.id} - ${m.content.substring(0, 25).replace(/\n/g, ' ')}...`)
-            if (proposedTitle === undefined) {
-                console.error(`No title found`)
-                continue;
-            }
-            console.log(`Proposed title: ${proposedTitle}`)
+    //         console.log(`Message ${m.id} - ${m.content.substring(0, 25).replace(/\n/g, ' ')}...`)
+    //         if (proposedTitle === undefined) {
+    //             console.error(`No title found`)
+    //             continue;
+    //         }
+    //         console.log(`Proposed title: ${proposedTitle}`)
 
-            await createLorePost(splittedContent.join('\n'), proposedTitle.substring(0,100), newSigurd, {
-                embeds: m.embeds,
-                files: m.attachments.map(a => a.url),
-            });
-        }
-    }
+    //         await createLorePost(splittedContent.join('\n'), proposedTitle.substring(0,100), newSigurd, {
+    //             embeds: m.embeds,
+    //             files: m.attachments.map(a => a.url),
+    //         });
+    //     }
+    // }
 }
 
 export * from './add-to-team';
 export * from './battle-func';
-export * from './database';
 export * from './googledocs';
 export * from './openai';
 export * from './register';

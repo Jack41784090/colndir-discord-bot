@@ -87,7 +87,7 @@ export function getGoogleDocImage(documentId: string): Promise<void | string[]> 
 	});
 }
 
-export function getGoogleDocContent(documentId: string): Promise<Error | null | string>{
+export function getGoogleDocContent(documentId: string): Promise<Error | string>{
 	const story: string[] = [];
 	return new Promise((resolve) => {
 		docs.documents.get({ documentId: documentId },

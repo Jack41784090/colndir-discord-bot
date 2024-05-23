@@ -1,4 +1,4 @@
-import { GetGuildData } from '@functions';
+import { ProfileManager } from '@classes/InteractionHandler';
 import { Listener } from '@sapphire/framework';
 import { Events, GuildMember } from 'discord.js';
 
@@ -11,7 +11,7 @@ export class NewLeaveListener extends Listener<typeof Events.GuildMemberAdd> {
     }
 
     public async run(member: GuildMember) {
-        const guildData = await GetGuildData(member.guild.id);
+        const guildData = await ProfileManager.GuildData(member.guild.id);
         if (guildData?.leaveMessage && guildData?.leaveChannelID) {
             member.guild.channels.fetch(guildData.leaveChannelID)
                 .then((channel) => {

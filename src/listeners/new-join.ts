@@ -1,4 +1,4 @@
-import { GetGuildData } from '@functions';
+import { ProfileManager } from '@classes/InteractionHandler';
 import { Listener } from '@sapphire/framework';
 import { Events, GuildMember, Role } from 'discord.js';
 
@@ -27,7 +27,7 @@ export class NewJoinListener extends Listener<typeof Events.GuildMemberAdd> {
 
     public async run(member: GuildMember) {
         addRoleToNewMember(member, 'making character')
-        const guildData = await GetGuildData(member.guild.id);
+        const guildData = await ProfileManager.GuildData(member.guild.id);
         if (guildData?.welcomeMessage && guildData?.welcomeChannelID) {
             member.guild.channels.fetch(guildData.welcomeChannelID)
                 .then((channel) => {
