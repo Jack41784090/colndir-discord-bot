@@ -1,7 +1,6 @@
 import bot from "@bot";
-import { ProfileInteractionType, ProfileManager } from "@classes/InteractionHandler";
-import { COLNDIR_SERVERID, NORM_CHAR_LIMIT } from "@constants";
-import { AnyThreadChannel, BaseGuildTextChannel, BaseMessageOptions, CategoryChannel, Channel, ChannelType, Colors, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildForumTag, Message, MessageCreateOptions, NonThreadGuildBasedChannel, TextBasedChannel, TextChannel, ThreadChannel, VoiceBasedChannel } from "discord.js";
+import { NORM_CHAR_LIMIT } from "@constants";
+import { AnyThreadChannel, BaseGuildTextChannel, BaseMessageOptions, CategoryChannel, ChannelType, Colors, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildForumTag, Message, MessageCreateOptions, NonThreadGuildBasedChannel, TextBasedChannel, TextChannel, ThreadChannel, VoiceBasedChannel } from "discord.js";
 import ytdl from "ytdl-core";
 
 export function capitalize(string: string): string {
@@ -261,8 +260,9 @@ export function levenshteinDistance(s1: string, s2: string): number {
 }
 
 export function extractDiscordLinks(text: string): string[] {
-    const regex = /https:\/\/discord\.com\/channels\/\d+\/\d+(\/\d+)?/g;
-    return [...text.matchAll(regex)].map(match => match[0]);
+    const regex = /https:\/\/discord\.com\/channels\/\d+\/\d+(\/\d+)?|<#\d+>/g;
+    const array = [...text.matchAll(regex)].map(match => match[0]);   
+    return array;
 }
 
 export async function getPostMessage(post: ThreadChannel): Promise<Message | null>{
@@ -433,39 +433,56 @@ export async function createLorePost(content: string, title: string, forum: Foru
     }
 }
 
-export async function fetchContent(url: string): Promise<Message | Channel | null> {
-    const regex = /https:\/\/discord\.com\/channels\/(\d+)\/(\d+)\/?(\d+)?/;
-    const match = url.match(regex);
-
-    if (!match) {
+type discordContent = {
+    url: string,
+    source: Message | TextBasedChannel
+}
+export async function retrieveDiscordContent(url: string): Promise<discordContent[]> {
+    const match = extractDiscordLinks(url);
+    if (match.length === 0) {
         console.error('Invalid URL');
-        return null;
+        return [];
     }
 
-    const [, guildId, channelId, messageId] = match;
+    const array: discordContent[] = [];
+    for (const l of match) {
+        if (l.startsWith("https://discord.com/channels/")) {
+            // console.log(l);
+            const [, , , guildId, channelId, messageId] = l.split('/').filter(s => s.length > 0);
+        
+            try {
+                // console.log(`fetching guild ${guildId}`)
+                const guild = await bot.guilds.fetch(guildId); 
+                // console.log(`fetching channel ${channelId}`)
+                const channel = await guild.channels.fetch(channelId); 
 
-    try {
-        const guild = await bot.guilds.fetch(guildId);
-        const channel = await guild.channels.fetch(channelId);
-
-        if (messageId && channel?.isTextBased()) {
-            const messageChannel = channel as TextChannel;
-            const message = await messageChannel.messages.fetch(messageId);
-            return message;
-        } else {
-            return channel;
+                // referencing a message
+                if (messageId && channel?.isTextBased()) {
+                    const messageChannel = channel as TextChannel;
+                    const message = await messageChannel.messages.fetch(messageId);
+                    array.push({ url: l, source: message });
+                }
+                // referencing a channel
+                else if (channel?.isTextBased()) {
+                    array.push({ url: l, source: channel });
+                }
+            } catch (error) {
+                if (error instanceof Error) console.error('Error fetching content:', error.message);
+            }
         }
-    } catch (error) {
-        if (error instanceof Error) console.error('Error fetching content:', error.message);
-        return null;
+        else if (l.startsWith("<#")) {
+            const channelId = l.slice(2, -1);
+            const channel = await bot.channels.fetch(channelId);
+            if (channel && channel.isTextBased()) array.push({ url: l, source: channel });
+        }
     }
+
+    return array;
 }
 export async function TestFunction() {
-    const event = await ProfileManager.Register(COLNDIR_SERVERID, ProfileInteractionType.DefaultGuild);
-    console.log(event);
     // const estiaForum = await bot.channels.fetch(NEWESTIA_NEWFORUMID);
     // const allposts = await getAllChannelThreads(estiaForum as ForumChannel);
-    // console.log(allposts.map(p => p.name).join(", "));
+    // allposts.forEach(p => console.log(p.name))
 
     // const ike = await bot.users.fetch(IKE_USERID);
     // const merc = await bot.users.fetch(MERC_USERID)
@@ -551,6 +568,7 @@ export async function TestFunction() {
 
 export * from './add-to-team';
 export * from './battle-func';
+export * from './database';
 export * from './googledocs';
 export * from './openai';
 export * from './register';

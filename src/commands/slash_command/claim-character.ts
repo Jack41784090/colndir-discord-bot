@@ -1,5 +1,5 @@
 import { Character } from "@ctypes";
-import { GetData, GetUserData, SaveUserData, getErrorEmbed } from "@functions";
+import { GetData, getErrorEmbed, GetUserData, SaveUserData } from "@functions";
 import { ChatInputCommand, Command } from "@sapphire/framework";
 import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
 
@@ -36,7 +36,7 @@ export class ClaimCharacterCommand extends Command {
         if (data.authorised.includes(user.id) || data.authorised.includes('all')) {
             const ud = await GetUserData(user.id);
             ud.combatCharacters.push(name);
-            await SaveUserData(ud)
+            await SaveUserData(ud.id, ud)
             return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`Character ${name} claimed by ${user.username}`)] });
         }
     }
