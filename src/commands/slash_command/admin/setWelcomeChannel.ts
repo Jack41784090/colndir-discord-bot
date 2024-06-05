@@ -1,7 +1,7 @@
+import { ProfileManager } from '@classes/InteractionHandler';
 import { GuildData } from '@ctypes';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
-import { ProfileManager } from '../../class/InteractionHandler';
 
 export class SetWelcomeCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {

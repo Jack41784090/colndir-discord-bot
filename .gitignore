@@ -7,10 +7,8 @@ firebase.json
 googleapi.json
 # Ignore generated credentials from google-github-actions/auth
 gha-creds-*.json
-src/commands/slash_command/find_characters.ts
-src/commands/slash_command/clear.ts
-src/commands/slash_command/move.ts
+src/commands/slash_command/one-time
 src/commands/context_menu/get_message_info.ts
-src/commands/slash_command/template.ts
+src/commands/slash_command/_template.ts
 src/interaction-handlers/clash/select-defender.ts
 src/listeners/new-post.ts

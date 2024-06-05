@@ -15,7 +15,7 @@ export class TESTCommand extends Command {
     public override async registerApplicationCommands(registry: ChatInputCommand.Registry) {
         registry.registerChatInputCommand((builder) =>
             builder
-                .setName('test')
+                .setName('edit-message')
                 .setDescription('Ping bot to see if it is alive')
         );
     }

@@ -2,13 +2,11 @@ import { ProfileManager } from "@classes/InteractionHandler";
 import { CombatCharacter, ProfileInteractionType, ProfileType, UserData } from "@ctypes";
 import { GetCombatCharacter, getErrorMessage, getGreenflagEmbed } from "@functions";
 import { ChatInputCommand, Command } from "@sapphire/framework";
-import { PermissionFlagsBits } from "discord.js";
 
 export class ClaimCharacterCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
-            requiredUserPermissions: [PermissionFlagsBits.Administrator]
         });
     }
 
@@ -41,8 +39,13 @@ export class ClaimCharacterCommand extends Command {
             }
 
             const ud = event.profile.data as UserData;
-            ud.combatCharacters.push(name);
-            return interaction.followUp({ embeds: [getGreenflagEmbed(`Character ${name} claimed by ${user.username}`)] });
+            if (ud.combatCharacters.includes(name)) {
+                return interaction.followUp(getErrorMessage(`You already own ${name}`));
+            }
+            else {
+                ud.combatCharacters.push(name);
+                return interaction.followUp({ embeds: [getGreenflagEmbed(`Character ${name} claimed by ${user.username}`)] });
+            }
         }
     }
 }
