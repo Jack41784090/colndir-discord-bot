@@ -1,6 +1,6 @@
-import { GuildProfile, ProfileInteractionType, ProfileManager } from '@classes/InteractionHandler';
+import { ProfileManager } from '@classes/InteractionHandler';
 import { GOOGLEDOCS_REGEX, NORM_CHAR_LIMIT } from '@constants';
-import { ColndirCharacter } from '@ctypes';
+import { ColndirCharacter, GuildData, ProfileInteractionType, ProfileType } from '@ctypes';
 import { cutDownLength, getAllMessages, getAllThreads, getConsecutiveMessages as getConsecutiveAuthorMessages, getErrorMessage, getGoogleDocContent, register, sendCharacterRegistrationRequest } from '@functions';
 import { Command } from '@sapphire/framework';
 import ansiColors from 'ansi-colors';
@@ -61,14 +61,11 @@ export class ApproveContextMenu extends Command {
         }
 
         // 0. Register for GuildData access
-        const guildDataAccessEvent = await ProfileManager.Register(interaction.guildId!, ProfileInteractionType.DefaultGuild);
+        const guildDataAccessEvent = await ProfileManager.Register(ProfileType.Guild, interaction.guildId!, ProfileInteractionType.Default);
         if (guildDataAccessEvent instanceof Error) {
             return interaction.followUp(getErrorMessage(guildDataAccessEvent.message));
         }
-        const guildData = (guildDataAccessEvent.profile as GuildProfile).guildData;
-        if (!guildData) {
-            return interaction.followUp(getErrorMessage("In approve, Guild data is empty when retrieving from ProfileManager."));
-        }
+        const guildData = guildDataAccessEvent.profile.data as GuildData;
 
         const validChannels = [guildData.approvedChannelID, guildData.pendingChannelID];
         if (validChannels.every(id => id !== interaction.channelId)) {
@@ -90,7 +87,7 @@ export class ApproveContextMenu extends Command {
         }
 
         // 1.1 Register profile for User access
-        const userDataAccessEvent = await ProfileManager.Register(originalMessage.author.id, ProfileInteractionType.DefaultUser);
+        const userDataAccessEvent = await ProfileManager.Register(ProfileType.User, originalMessage.author.id, ProfileInteractionType.Default);
         if (userDataAccessEvent instanceof Error) {
             return interaction.followUp(getErrorMessage(userDataAccessEvent.message));
         }
@@ -116,7 +113,7 @@ export class ApproveContextMenu extends Command {
             story = consecutiveMes.map(m => m.content).join('\n') ?? ''; 
         }
 
-        if (story instanceof Error) {
+        if ( story instanceof Error) {
             console.log(ansiColors.red(`|| Error: ${typeof story === 'string' ? story : (story as Error).message}`));
             const errorMessage = typeof story === 'string' ? story : (story as Error).message;
             return interaction.followUp(getErrorMessage(errorMessage ?? "Story returned an empty string."));

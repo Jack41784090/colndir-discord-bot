@@ -1,17 +1,17 @@
-import { Character } from '@ctypes';
+import { CombatCharacter } from '@ctypes';
 import characterExampleJSON from '@data/characters.json';
-import { SaveData } from '@functions';
+import { SaveCombatCharacter } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
 export class RegisterCCharCommand extends Command {
-    cc_keys: Array<Exclude<keyof Character, 'authorised'>>;
+    cc_keys: Array<Exclude<keyof CombatCharacter, 'authorised'>>;
     public constructor(context: Command.LoaderContext, options: Command.Options) {
         super(context, {
             ...options,
             requiredUserPermissions: [PermissionFlagsBits.Administrator]
         });
-        this.cc_keys = Object.keys(characterExampleJSON.Azaera).filter(k => k !== 'authorised') as Array<Exclude<keyof Character, 'authorised'>>;
+        this.cc_keys = Object.keys(characterExampleJSON.Azaera).filter(k => k !== 'authorised') as Array<Exclude<keyof CombatCharacter, 'authorised'>>;
     }
 
     public override async registerApplicationCommands(registry: ChatInputCommand.Registry) {
@@ -51,7 +51,9 @@ export class RegisterCCharCommand extends Command {
             charMap.set(c, interaction.options.get(c.toLowerCase())?.value as string | number | string[]);
         }
         charMap.set('authorised', user?.id ? [ user.id ] : [ "all" ]);
-        await SaveData('Combat Character', charMap.get('name') as string, Object.fromEntries(charMap.entries()));
+        
+        await SaveCombatCharacter(charMap.get('id')! as string, Object.fromEntries(Object.entries(charMap)) as CombatCharacter);
+        
         return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`character created `)] });
     }
 }

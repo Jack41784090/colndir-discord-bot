@@ -118,8 +118,8 @@ export enum BotType {
     Player = 'player',
     Enemy = 'enemy',
 }
-export type Character = typeof charactersJSON.Dummy
-export type PureCharacter = Omit<Character, 'name' | 'description' | 'authorised'>
+export type CombatCharacter = typeof charactersJSON.Dummy
+export type PureCharacter = Omit<CombatCharacter, 'name' | 'description' | 'authorised'>
 export type ClashResultFate = "Miss" | "Hit" | "CRIT"
 export type EntityStats = keyof Omit<EntityConstance, 'name' | 'owner' | 'username' | 'id' | 'iconURL'>;
 export enum Reality {

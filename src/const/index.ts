@@ -16,6 +16,7 @@ export const NEWESTIA_NEWFORUMID = '1238766847558549634';
 
 export const USERINFO_COLLECTION_NAME = 'User';
 export const GUILDINFO_COLLECTION_NAME = 'Guild';
+export const COMBATCHARACTER_COLLECTION_NAME = 'Combat Character'
 export const DEFAULT_WELCOME_MESSAGE = 'Welcome to the server, @user!';
 export const DEFAULT_LEAVE_MESSAGE = 'Goodbye, @user!';
 

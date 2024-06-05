@@ -1,7 +1,7 @@
 {
     "Dummy": {
         "authorised": ["all"],
-        "name": "Dummy",
+        "id": "Dummy",
         "str": 1,
         "dex": 1,
         "acr": 1,
@@ -18,7 +18,7 @@
     },
     "Ogaefa": {
         "authorised": ["843757875477741569"],
-        "name": "Ogaefa",
+        "id": "Ogaefa",
         "str": 9,
         "dex": 4,
         "spd": 7,
@@ -30,7 +30,7 @@
     },
     "Azaera": {
         "authorised": ["486383295542591498"],
-        "name": "Azaera",
+        "id": "Azaera",
         "str": 5,
         "dex": 8,
         "spd": 5,

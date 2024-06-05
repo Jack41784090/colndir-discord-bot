@@ -1,7 +1,7 @@
 import bot from "@bot";
-import { GuildProfile, ProfileInteractionType, ProfileManager } from "@classes/InteractionHandler";
+import { ProfileManager } from "@classes/InteractionHandler";
 import { DESCRIPTION_LIMIT, DISCORD_CDN_REGEX, DISCORD_MEDIA_REGEX, FIELD_VALUE_LIMIT, GOOGLEDOCS_REGEX, HOUR } from "@constants";
-import { ColndirCharacter } from "@ctypes";
+import { ColndirCharacter, ProfileInteractionType, ProfileType } from "@ctypes";
 import { capitalize, formalise, getConsecutiveMessages, getGoogleDocImage } from "@functions";
 import { ChannelType, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildEmoji, Message, TextChannel, ThreadChannel, User } from "discord.js";
 
@@ -85,12 +85,12 @@ export async function register({ guild, concerningUser, character, originalMessa
     ping?: boolean}
 ) {
     // 1. Check if character is already registered in the guild
-    const registerCommandGDAccess = await ProfileManager.Register(guild.id, ProfileInteractionType.DefaultGuild);
+    const registerCommandGDAccess = await ProfileManager.Register(ProfileType.Guild, guild.id, ProfileInteractionType.Default);
     if (registerCommandGDAccess instanceof Error) {
         return registerCommandGDAccess;
     }
 
-    const guildData = (registerCommandGDAccess.profile as GuildProfile).guildData;
+    const guildData = (await ProfileManager.GuildData(guild.id))!;
     const chars: ColndirCharacter[] = guildData.registeredCharacters;
     const existing = chars.find(c => c.NAME === character.NAME);
     if (existing) {

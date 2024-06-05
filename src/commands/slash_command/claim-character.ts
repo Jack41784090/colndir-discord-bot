@@ -1,7 +1,8 @@
-import { Character } from "@ctypes";
-import { GetData, getErrorEmbed, GetUserData, SaveUserData } from "@functions";
+import { ProfileManager } from "@classes/InteractionHandler";
+import { CombatCharacter, ProfileInteractionType, ProfileType, UserData } from "@ctypes";
+import { GetCombatCharacter, getErrorMessage, getGreenflagEmbed } from "@functions";
 import { ChatInputCommand, Command } from "@sapphire/framework";
-import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
+import { PermissionFlagsBits } from "discord.js";
 
 export class ClaimCharacterCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -28,16 +29,20 @@ export class ClaimCharacterCommand extends Command {
 
         const name = interaction.options.getString('name')!;
         const user = interaction.user!;
-        const data = await GetData('Combat Character', name) as Character;
+        const data = await GetCombatCharacter(name, { authorise: user }) as CombatCharacter;
         if (!data) {
-            return interaction.followUp({ embeds: [getErrorEmbed(`Character ${name} not found`)] });
+            return interaction.followUp(getErrorMessage(`Character ${name} not found`));
         }
         
         if (data.authorised.includes(user.id) || data.authorised.includes('all')) {
-            const ud = await GetUserData(user.id);
+            const event = await ProfileManager.Register(ProfileType.User, user.id, ProfileInteractionType.Default);
+            if (event instanceof Error) {
+                return interaction.followUp(getErrorMessage(event.message));
+            }
+
+            const ud = event.profile.data as UserData;
             ud.combatCharacters.push(name);
-            await SaveUserData(ud.id, ud)
-            return interaction.followUp({ embeds: [new EmbedBuilder().setTitle(`Character ${name} claimed by ${user.username}`)] });
+            return interaction.followUp({ embeds: [getGreenflagEmbed(`Character ${name} claimed by ${user.username}`)] });
         }
     }
 }

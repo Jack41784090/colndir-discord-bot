@@ -559,9 +559,12 @@ export class Battle extends EventEmitter {
                 const characterBase = await GetCombatCharacter(p.combatCharacters[0]);
                 return characterBase ?
                     new Entity({
-                        base: Object.assign(characterBase, p),
+                        base: Object.assign({
+                            name: characterBase.id,
+                            ...characterBase
+                        }, p),
                         team: c.teamMapping[p.id],
-                        name: characterBase.name,
+                        name: characterBase.id,
                         botType: BotType.Player,
                         isPlayer: true,
                         isPvp: true

@@ -1,4 +1,5 @@
-import { GuildProfile, ProfileInteractionType, ProfileManager } from '@classes/InteractionHandler';
+import { ProfileManager } from '@classes/InteractionHandler';
+import { GuildData, ProfileInteractionType, ProfileType } from '@ctypes';
 import { getErrorMessage } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
@@ -22,12 +23,12 @@ export class SetApproveCommand extends Command {
             ephemeral: true
         });
         if (interaction.guildId) {
-            const setApproveGuildDataAccess = await ProfileManager.Register(interaction.guildId, ProfileInteractionType.DefaultGuild);
+            const setApproveGuildDataAccess = await ProfileManager.Register(ProfileType.Guild, interaction.guildId, ProfileInteractionType.Default);
             if (setApproveGuildDataAccess instanceof Error) {
                 return interaction.editReply(getErrorMessage(`Registration failure: ${setApproveGuildDataAccess.message}`));
             }
 
-            const guildData = (setApproveGuildDataAccess.profile as GuildProfile).guildData
+            const guildData = setApproveGuildDataAccess.profile.data as GuildData;
             guildData.approvedChannelID = interaction.channelId;
             return interaction.editReply('Channel set as the approved channel.');
         }

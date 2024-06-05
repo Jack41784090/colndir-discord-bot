@@ -1,129 +1,165 @@
-import { GuildData, UserData } from "@ctypes";
-import { GetGuildData, getPromiseStatus, GetUserData, SaveGuildData, SaveUserData } from '@functions';
+import { CombatCharacter, GetScript, GuildData, ProfileInteractionType, ProfileType, SaveScript, UserData, ValidProfileData } from "@ctypes";
+import { GetCombatCharacter, GetGuildData, getPromiseStatus, GetUserData, SaveGuildData, SaveUserData } from '@functions';
 import { Message } from 'discord.js';
 import { Battle } from "./Battle";
 
-export enum ProfileInteractionType { DefaultUser, DefaultGuild, Dungeon, Battle }
+function isUserData(data: object): data is UserData {
+    return 'username' in data;
+}
+
+function isGuildData(data: object): data is GuildData {
+    return 'roleChannelID' in data;
+}
+
+function isCombatCharacter(data: object): data is CombatCharacter {
+    return 'authorised' in data;
+}
+
+function Script(method: 'get', type: ProfileType): GetScript;
+function Script(method: 'save', type: ProfileType): SaveScript;
+function Script(method: 'get', data: ValidProfileData): GetScript;
+function Script(method: 'save', data: ValidProfileData): SaveScript;
+function Script(method: 'get' | 'save', type_data: ProfileType | ValidProfileData): GetScript | SaveScript {
+    if (typeof type_data === 'number') {
+        const type = type_data;
+        switch (type) {
+            case ProfileType.CombatCharacter:
+                return method === 'get' ? GetCombatCharacter : SaveUserData;
+            case ProfileType.Guild:
+                return method === 'get' ? GetGuildData : SaveUserData;
+            case ProfileType.User:
+                return method === 'get' ? GetUserData : SaveUserData;
+        }
+    }
+
+    if (isUserData(type_data)) return method === 'get' ? GetUserData : SaveUserData;
+    if (isGuildData(type_data)) return method === 'get' ? GetGuildData : SaveUserData;
+    if (isCombatCharacter(type_data)) return method === 'get' ? GetCombatCharacter : SaveUserData;
+
+    throw new Error("Invalid data type provided to Script.");
+}
+
+function getDataType(data: ValidProfileData): ProfileType | null {
+    if (isUserData(data)) return ProfileType.User;
+    if (isGuildData(data)) return ProfileType.Guild;
+    if (isCombatCharacter(data)) return ProfileType.CombatCharacter;
+    return null;
+}
 
 class Profile {
-    pending: Array<InteractionEvent>
-    handling: Array<InteractionEvent>
-    handlerPromise: Promise<unknown>
-    handleInterval;
+    saveMethod: SaveScript;
+    type: ProfileType;
+    id: string;
+    data: ValidProfileData;
+    eventManager: EventManager;
 
-    constructor() {
-        this.pending = [];
-        this.handling = [];
-        this.handlerPromise = Promise.resolve();
-        this.handleInterval = setInterval(() => {
+    private constructor(
+        data: ValidProfileData,
+        type: ProfileType,
+        saveMethod: SaveScript,
+    ) {
+        this.data = data;
+        this.type = type;
+        this.id = `${type}:${this.data.id}`;
+        this.eventManager = new EventManager(this);
+        this.saveMethod = saveMethod;
+    }
+
+    static Create(
+        data: ValidProfileData,
+        saveMethod: SaveScript,
+    ): Profile | null {
+        const type = getDataType(data);
+        if (!type) return null;
+        return new Profile(data, type, saveMethod);
+    }
+
+    async save() {
+        console.log(`Saving Data (${this.data.id})...`);
+        
+    }
+
+    async delete() {
+        console.log(`Deleting Profile (${getDataType(this.data)})...`);
+        ProfileManager.Instance().profileMap.delete(this.data.id);
+    }
+}
+
+class EventManager {
+    profile: Profile;
+    pending: Array<InteractionEvent> = [];
+    handling: Array<InteractionEvent> = [];
+    handlerPromise: Promise<void> = Promise.resolve();
+
+    constructor(profile: Profile) {
+        this.profile = profile;
+        this.init();
+    }
+
+    init() {
+        setInterval(() => {
             this.maybeHandle();
-        }, 1000)
+        }, 1000);
     }
 
     async maybeHandle(): Promise<void> {
-        const handlerStatus = await getPromiseStatus(this.handlerPromise)
+        const handlerStatus = await getPromiseStatus(this.handlerPromise);
         if (handlerStatus === 'fulfilled') {
             await this.handle();
         }
     }
-    
-    // Wait for all interactions for a player to end, then save UserData to the cloud
-    // That way, I don't have to spam the save function and burn "write" money.
-    // TODO: Try and make a "reject" section, when a new interaction is detected in "pending".
-    // TODO: Then, in the reject section, renew the Promise.all();
-    // NOTE: allSettled cannot detect promises that are just pushed in, so we need a handling and pending array.
+
     async handle() {
         if (this.handling.length === 0) {
             if (this.pending.length === 0) {
-                this.delete(); 
+                await this.profile.delete(); 
                 return;
             }
             this.handling = this.pending;
             this.pending = [];
         }
 
-        this.handlerPromise =
-            // 1. Wait for the first waves of interactions in "handling" to finish.
-            Promise.allSettled(this.handling.map(_e => _e.Promise()))
-                .then(() => {
-                    // 2. Stop each interaction if it hasn't been stopped already.
-                    this.handling.forEach(_e => { if (!_e.stopped) _e.Stop() });
+        this.handlerPromise = 
+            Promise.allSettled(this.handling.map(event => event.Promise()))
+                .then(async () => {
+                    this.handling.forEach(event => { if (!event.stopped) event.Stop() });
                     this.handling = [];
 
-                    // 3. If there are still pending interactions looking to save
                     if (this.pending.length > 0) {
-                        // 3a. There is, so redo HandlePlayer
                         console.log("\t\tPending is not empty, reusing.")
-                        return this.handle();
-                    }
-                    else {
-                        // 3b. All done. Save to cloud.
+                        await this.handle();
+                    } else {
                         console.log("\t\tAll done.")
-                        this.save();
+                        await this.profile.save();
                     }
                 });
     }
 
-    delete() { console.error(`Profile delete not implemented.`) }
-    async save() { console.error(`Profile save not implemented.`)}
-}
-export class UserProfile extends Profile {
-    id: string;
-    constructor(public userData: UserData) {
-        super()
-        this.id = `user:${userData.id}`
-        console.log(`Creating User Profile (${this.id})...`);
+    registerEvent(event: InteractionEvent) {
+        this.pending.push(event);
     }
 
-    override async save() {
-        console.log(`Saving User Data (${this.id})...`);
-        await SaveUserData(this.userData.id, this.userData);
-    }
-
-    override async delete() {
-        clearInterval(this.handleInterval);
-        console.log(`Deleting User Profile (${this.id})...`);
-        ProfileManager.Instance().userProfilesMap.delete(this.userData.id);
-    }
-}
-export class GuildProfile extends Profile {
-    id: string;
-    pending: Array<InteractionEvent> = [];
-    handling: Array<InteractionEvent> = [];
-    handlerPromise: Promise<unknown> = Promise.resolve();
-    constructor(public guildData: GuildData) {
-        super();
-        this.id = `guild:${guildData.id}`
-        console.log(`Creating Guild Profile (${this.id})...`);
-    }
-
-    override async save() {
-        console.log(`Saving Guild Data (${this.id})...`);
-        await SaveGuildData(this.guildData.id, this.guildData);
-    }
-
-    override async delete() {
-        clearInterval(this.handleInterval);
-        console.log(`Deleting Guild Profile (${this.id})...`);
-        ProfileManager.Instance().guildProfileMap.delete(this.guildData.id);
+    getDuplicateEvent(type: ProfileInteractionType): InteractionEvent | null {
+        const duplicate = this.pending.find(i => i.type === type) || this.handling.find(i => i.type === type);
+        if (duplicate) duplicate.Stop();
+        return duplicate || null;
     }
 }
 
 class InteractionEvent {
     static STANDARD_TIMEOUT = 10 * 1000;
 
-    type: ProfileInteractionType = ProfileInteractionType.DefaultUser;
-    profile: UserProfile | GuildProfile;
+    type: ProfileInteractionType = ProfileInteractionType.Default;
+    profile: Profile;
     interactedMessage?: Message;
     stoppable: boolean;
     stopped: boolean = false;
-
     timerPromise_resolve: (_v: void | PromiseLike<void>) => void = () => {};
     timerPromise_timeout: NodeJS.Timeout;
     timerPromise: Promise<void>;
 
-    protected constructor(profile: UserProfile | GuildProfile, stoppable: boolean, mes?: Message) {
-        console.log(`${profile.id}: Creating Interaction Event (${ProfileInteractionType[this.type]})`)
+    protected constructor(profile: Profile, stoppable: boolean, mes?: Message) {
+        console.log(`${profile.id}: Creating Interaction Event`)
         this.profile = profile
         this.interactedMessage = mes;
         this.stoppable = stoppable
@@ -132,11 +168,9 @@ class InteractionEvent {
             this.timerPromise_resolve = resolve;
         });
 
-        // inactivity stop
         this.timerPromise_timeout = this.Timeout();
     }
 
-    /** Removing the player's presence in the activity and allows for a new one to be generated */
     async Stop() {
         this.stopped = true;
         this.interactedMessage?.delete().catch(_err => null);
@@ -160,16 +194,18 @@ class InteractionEvent {
         }, InteractionEvent.STANDARD_TIMEOUT);
     }
 }
+
 class DefaultInteractionEvent extends InteractionEvent {
-    constructor(id: GuildProfile | UserProfile, mes?: Message) {
-        super(id, true, mes);
-        this.type = id instanceof GuildProfile ? ProfileInteractionType.DefaultGuild : ProfileInteractionType.DefaultUser;
+    constructor(profile: Profile, mes?: Message) {
+        super(profile, true, mes);
+        this.type = ProfileInteractionType.Default;
     }
 }
+
 class BattleInteractionEvent extends InteractionEvent {
     battle: Battle;
-    constructor(id: GuildProfile | UserProfile, battle: Battle, mes?: Message) {
-        super(id, true, mes);
+    constructor(profile: Profile, battle: Battle, mes?: Message) {
+        super(profile, true, mes);
         this.type = ProfileInteractionType.Battle;
         this.battle = battle;
     }
@@ -183,116 +219,111 @@ class RegistrationError extends Error {
 }
 
 export class ProfileManager {
-    // instance values
-    guildProfileMap: Map<string, GuildProfile> = new Map();
-    userProfilesMap: Map<string, UserProfile> = new Map();
+    profileMap: Map<string, Profile> = new Map();
     private static instance: ProfileManager;
 
-    // static to access data easier
     static Instance(): ProfileManager {
-        if (ProfileManager.instance === undefined) {
+        if (!ProfileManager.instance) {
             ProfileManager.instance = new ProfileManager();
         }
-        return this.instance;
+        return ProfileManager.instance;
     }
 
-    // Ensure a user profile exists and return it.
-    private static async ensureUserProfile(id: string, userData?: UserData): Promise<UserProfile | null> {
+    private static async ensureProfile<ValidProfileData>(
+        id: string,
+        getScript: GetScript,
+        saveScript: SaveScript,
+    ): Promise<Profile | null> {
         if (id.length === 0) return null;
-        if (!this.instance) this.instance = this.Instance();
-        const get = this.instance.userProfilesMap.get(id);
-        if (get) {
-            return get
+
+        const instance = this.Instance();
+        const existingProfile = instance.profileMap.get(id);
+        if (existingProfile) {
+            return existingProfile;
         }
         else {
-            const fetch = await GetUserData(id);
-            return fetch ?
-                this.instance.userProfilesMap.set(id,new UserProfile(userData ?? fetch)).get(id)!:
-                null;
+            const fetchedData = await getScript(id);
+            if (fetchedData) {
+                const newProfile = Profile.Create(fetchedData, saveScript);
+                if (!newProfile) return null;
+                instance.profileMap.set(id, newProfile);
+                return newProfile;
+            } else {
+                return null;
+            }
         }
     }
-    private static async ensureGuildProfile(id: string, guildData?: GuildData): Promise<GuildProfile | null> {
-        if (!this.instance) this.instance = this.Instance();
-        const get = this.instance.guildProfileMap.get(id);
-        if (get) {
-            return get
-        }
-        else {
-            const fetch = await GetGuildData(id);
-            return fetch ?
-                this.instance.guildProfileMap.set(id,new GuildProfile(guildData ?? fetch)).get(id)!:
-                null;
-        }
-    }
+
     public static async GuildData(_id: string): Promise<GuildData | null> {
-        return this.ensureGuildProfile(_id).then(x => x?.guildData ?? null);
+        const profile = await this.ensureProfile(_id, GetGuildData, SaveGuildData);
+        return profile ? profile.data as GuildData : null;
     }
+
     public static async UserData(_id: string): Promise<UserData | null> {
-        return this.ensureUserProfile(_id).then(x => x?.userData ?? null);
+        const profile = await this.ensureProfile(_id, GetUserData, SaveUserData);
+        return profile ? profile.data as UserData : null;
     }
 
     public static async SaveGuildData(_id: string, data: Partial<GuildData>) {
-        return this.ensureGuildProfile(_id).then(x => x ? x.guildData = Object.assign(x.guildData, data) as GuildData : null);
-    }
-    public static async SaveUserData(_id: string, data: Partial<UserData>) {
-        return this.ensureUserProfile(_id).then(x => x ? x.userData = Object.assign(x.userData, data) as UserData : null);
+        const profile = await this.ensureProfile(_id, GetGuildData, SaveGuildData);
+        if (profile) {
+            Object.assign(profile.data, data);
+            await SaveGuildData(_id, profile.data as GuildData);
+        }
     }
 
-    // Helper to create specific interaction events based on type.
-    private static createEvent(type: ProfileInteractionType, id: GuildProfile | UserProfile, { associatedMes, dungeon, battle }: any): InteractionEvent | null {
+    public static async SaveUserData(_id: string, data: Partial<UserData>) {
+        const profile = await this.ensureProfile(_id, GetUserData, SaveUserData);
+        if (profile) {
+            Object.assign(profile.data, data);
+            await SaveUserData(_id, profile.data as UserData);
+        }
+    }
+
+    private static createEvent(type: ProfileInteractionType, profile: Profile, optionals?: { associatedMes?: Message, battle?: Battle }): InteractionEvent | null {
         switch (type) {
             case ProfileInteractionType.Battle:
-                return new BattleInteractionEvent(id, battle!, associatedMes);
-            case ProfileInteractionType.DefaultUser:
-            case ProfileInteractionType.DefaultGuild:
-                return new DefaultInteractionEvent(id, associatedMes);
+                return new BattleInteractionEvent(profile, optionals?.battle!, optionals?.associatedMes);
+            case ProfileInteractionType.Default:
+                return new DefaultInteractionEvent(profile, optionals?.associatedMes);
             default:
                 return null;
         }
     }
 
-    // Check for duplicate events.
-    private static getDuplicateEvent(userProfile: Profile, type: ProfileInteractionType) {
-        const duplicate = userProfile.pending.find(i => i.type === type) || userProfile.handling.find(i => i.type === type);
-        if (duplicate) duplicate.Stop(); // Stops the duplicate event.
-        return duplicate || null;
+    private static getDuplicateEvent(profile: Profile, type: ProfileInteractionType): InteractionEvent | null {
+        const duplicate = profile.eventManager.getDuplicateEvent(type);
+        return duplicate;
     }
 
-    private static GetEvent<E extends InteractionEvent>(_id: string, type: ProfileInteractionType): E | null {
-        const map = this.instance.userProfilesMap.get(_id);
-        return map?.handling.find(_e => _e.type === type) as E ||
-            map?.pending.find(_e => _e.type === type) || null;
-    }
+    public static async Register<T extends InteractionEvent>(
+        dataType: ProfileType,
+        id: string,
+        type: ProfileInteractionType,
+        optionals?: { associatedMes?: Message, userData?: UserData, battle?: Battle }
+    ): Promise<InteractionEvent | RegistrationError> {
+        console.log(`Registering event (${id}): ${ProfileType[dataType]}`);
 
-    // Simplified registration method for interaction events.
-    public static async Register<T extends InteractionEvent>(id: string, type: ProfileInteractionType, optionals?: {
-        associatedMes?: Message,
-        userData?: UserData,
-        battle?: Battle
-    }) {
-        console.log(`Registering event (${id}): ${ProfileInteractionType[type]}`);
-        const { associatedMes, userData, battle } = optionals ?? {};
+        const getScript = Script('get', dataType);
+        const saveScript = Script('save', dataType);
 
-        const profile = (await ProfileManager.ensureGuildProfile(id) ?? await ProfileManager.ensureUserProfile(id));
+        const profile = await this.ensureProfile(id, getScript, saveScript);
         if (!profile) return new RegistrationError("Invalid id provided with Register. ID: " + id);
 
-        const event = this.createEvent(type, profile, { associatedMes, userData, battle }) as T;
-        if (!event) return new RegistrationError("Invalid Interaction Event Type."); // Early exit if no event created.
+        const event = this.createEvent(type, profile, optionals) as T;
+        if (!event) return new RegistrationError("Invalid Interaction Event Type.");
 
         const duplicate = this.getDuplicateEvent(profile, type);
-        if (duplicate) {
-            if (duplicate.stoppable) {
-                console.log(`Stopping duplicate event (${id}): ${ProfileInteractionType[type]}`);
-                duplicate.Stop(); // Stops the duplicate event.
-            }
-            else {
-                console.log(`Duplicate event (${id}): ${ProfileInteractionType[type]}`);
-                return new RegistrationError("Duplicate Interaction Event."); // Early exit if duplicate event.
-            }
+        if (duplicate && duplicate.stoppable) {
+            console.log(`Stopping duplicate event (${id}): ${ProfileInteractionType[type]}`);
+            duplicate.Stop();
+        } else if (duplicate) {
+            console.log(`Duplicate event (${id}): ${ProfileInteractionType[type]}`);
+            return new RegistrationError("Duplicate Interaction Event.");
         }
 
         console.log(`Registering event (${id}): ${ProfileInteractionType[type]}`);
-        profile.pending.push(event);
+        profile.eventManager.registerEvent(event);
         return event;
     }
 }

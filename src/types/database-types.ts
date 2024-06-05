@@ -1,3 +1,4 @@
+import { CombatCharacter } from "./battle-types";
 
 export type ColndirCharacter = {
     NAME: string;
@@ -38,3 +39,10 @@ export type GuildData = {
     approvedChannelID: string;
     pendingChannelID: string;
 }
+
+export enum ProfileType { User, Guild, CombatCharacter }
+export enum ProfileInteractionType { Default, Dungeon, Battle }
+export type ValidProfileData = UserData | GuildData | CombatCharacter;
+
+export type SaveScript = (id: string, data: ValidProfileData) => Promise<ValidProfileData>;
+export type GetScript = (id: string) => Promise<ValidProfileData | null>

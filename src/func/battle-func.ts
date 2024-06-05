@@ -1,7 +1,7 @@
 import { Ability, StatusEffect } from "@classes/Ability";
 import { Entity } from "@classes/Battle";
 import { Emoji, LOGCO_ORG, LOGCO_SIZ_HP, LOGCO_STR_HP, XCO_ORG, XCO_SIZ_HP, XCO_STR_HP, forceFailFallCoef, iEntityKeyEmoji, pierceFailFallCoef } from "@constants";
-import { AbilityName, AbilityTrigger, Armour, BeforeAfter, Character, ClashStringParams, DamageReport, EntityConstance, PureCharacter, Reality, StatusEffectApplyType, StatusEffectType, TimeSlotState, ToStringTuple, UserData, Weapon, WeaponMultiplier, iAbility, iBattleResult, iEntity, iEntityStats, iStatusEffect } from "@ctypes";
+import { AbilityName, AbilityTrigger, Armour, BeforeAfter, ClashStringParams, CombatCharacter, DamageReport, EntityConstance, PureCharacter, Reality, StatusEffectApplyType, StatusEffectType, TimeSlotState, ToStringTuple, UserData, Weapon, WeaponMultiplier, iAbility, iBattleResult, iEntity, iEntityStats, iStatusEffect } from "@ctypes";
 import charactersJSON from '@data/characters.json';
 import { NewObject, clamp, getCharArray, getWithSign, roundToDecimalPlace } from "@functions";
 import { Client, CollectedInteraction, EmbedBuilder, Interaction, InteractionCollector, InteractionCollectorOptions, User } from "discord.js";
@@ -191,15 +191,15 @@ export function attack(attacker: Entity | iEntity, target: Entity | iEntity, val
     }
 }
 
-export function getDefaultCharacter(): PureCharacter {
+export function getDefaultCharacter(): CombatCharacter {
     return NewObject(charactersJSON.Dummy);
 }
-export function GetEntityConstance(entity: Character, player?: User | UserData): EntityConstance {
-    const { name, str, dex, spd, siz, int, spr, fai, end, cha, beu, wil, acr } = entity;
+export function GetEntityConstance(entity: CombatCharacter, player?: User | UserData): EntityConstance {
+    const { id, str, dex, spd, siz, int, spr, fai, end, cha, beu, wil, acr } = entity;
     return {
         id: player?.id ?? getCharArray(20),
         username: player?.username,
-        name: name,
+        name: id,
         acr: acr,
         str: str,
         dex: dex,
