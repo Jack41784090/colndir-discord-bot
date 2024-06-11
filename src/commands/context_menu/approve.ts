@@ -151,7 +151,7 @@ export class ApproveContextMenu extends Command {
         }
         catch (e) {
             return interaction.followUp(getErrorMessage(cutDownLength(
-                `${JSON.stringify(e)}\ncontent:${response}`, NORM_CHAR_LIMIT) ||
+                `${(e)}\ncontent:${response}`, NORM_CHAR_LIMIT) ||
                 'Bot encountered an error while parsing GPT response.'
             ));
         }

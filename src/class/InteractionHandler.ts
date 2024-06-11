@@ -69,8 +69,12 @@ class Profile {
         data: ValidProfileData,
         saveMethod: SaveScript,
     ): Profile | null {
+        console.log(`Creating Profile (${data.id})...`);
         const type = getDataType(data);
-        if (!type) return null;
+        if (type === null) {
+            console.error("Invalid Profile Data Provided.");
+            return null;
+        }
         return new Profile(data, type, saveMethod);
     }
 
@@ -86,6 +90,7 @@ class Profile {
 }
 
 class EventManager {
+    interval: NodeJS.Timeout;
     profile: Profile;
     pending: Array<InteractionEvent> = [];
     handling: Array<InteractionEvent> = [];
@@ -93,11 +98,7 @@ class EventManager {
 
     constructor(profile: Profile) {
         this.profile = profile;
-        this.init();
-    }
-
-    init() {
-        setInterval(() => {
+        this.interval = setInterval(() => {
             this.maybeHandle();
         }, 1000);
     }
@@ -112,6 +113,7 @@ class EventManager {
     async handle() {
         if (this.handling.length === 0) {
             if (this.pending.length === 0) {
+                clearInterval(this.interval);
                 await this.profile.delete(); 
                 return;
             }

@@ -106,7 +106,7 @@ export class SendEmbedCommand extends Command {
                     return interaction.followUp({ content: `Error: \`${error.message}\``, ephemeral: true })
                 }
                 else if (error instanceof Object) {
-                    return interaction.followUp({ content: `Object: \`${JSON.stringify(error)}\``, ephemeral: true })
+                    return interaction.followUp({ content: `Object: \`${(error)}\``, ephemeral: true })
                 }
                 else {
                     return interaction.followUp({ content: `Unknown Error: \`${error}\``, ephemeral: true })

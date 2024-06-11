@@ -36,7 +36,7 @@ export async function SaveData<T extends object>(collection: string, doc: string
     const document = database.collection(collection).doc(doc);
     const snapshotData = await document.get();
 
-    console.log(`Saving Data [${collection}] => [${doc}]`, JSON.stringify(data));
+    console.log(`Saving Data [${collection}] => [${doc}]`, (data));
     if (snapshotData.exists) {
         if (existCB) existCB(snapshotData.data() as T, document);
         else {
@@ -102,7 +102,7 @@ export async function GetUserData(id_author: string | User): Promise<UserData | 
             characters: fetched.characters ?? [],
             combatCharacters: fetched.combatCharacters ?? [],
         } as UserData;
-        console.log(`Got User Data [${id}]`, JSON.stringify(ud));
+        console.log(`Got User Data [${id}]`, (ud));
         return ud;
     }
 }
@@ -112,7 +112,7 @@ export async function SaveGuildData(serverID: string, gd: Partial<GuildData>) {
     return await SaveData(GUILDINFO_COLLECTION_NAME, serverID, gd, 
         (data, document) => {
             const newgd = Object.assign(data, gd);
-            console.log(`||=> Exists, ${JSON.stringify(newgd)}`);
+            console.log(`||=> Exists, ${(newgd)}`);
             document.update(newgd);
         },
         (document) => {
@@ -133,7 +133,7 @@ export async function GetGuildData(serverID: string) {
         await SaveGuildData(serverID, defaultData);
     }
     const gd = NewObject(defaultData, fetched || {})
-    console.log(`Got Guild Data [${serverID}]`, JSON.stringify(gd));
+    console.log(`Got Guild Data [${serverID}]`, (gd));
     
     return gd as GuildData;
 }
@@ -169,7 +169,7 @@ export async function SaveCombatCharacter(id: string, character: Partial<CombatC
     return await SaveData(COMBATCHARACTER_COLLECTION_NAME, id, character, 
         (data, document) => {
             const newgd = Object.assign(data, character);
-            console.log(`||=> Exists, ${JSON.stringify(newgd)}`);
+            console.log(`||=> Exists, ${(newgd)}`);
             document.update(newgd);
         },
         (document) => {

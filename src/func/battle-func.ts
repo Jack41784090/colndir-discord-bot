@@ -105,10 +105,9 @@ export function maxPosture(entity: EntityConstance): number {
 }
 export function additionalHP(entity:PureCharacter): number {
     const { str, siz } = entity;
-    const x = roundToDecimalPlace(str * 0.33, 3);
-
-    const z = roundToDecimalPlace(siz * 0.67, 3);
-    return LOGCO_STR_HP * Math.log(XCO_STR_HP * x + 1) + LOGCO_SIZ_HP * Math.log(XCO_SIZ_HP * z + 1);
+    const str33 = roundToDecimalPlace(str * 0.33, 3);
+    const siz66 = roundToDecimalPlace(siz * 0.67, 3);
+    return LOGCO_STR_HP * Math.log(XCO_STR_HP * str33 + 1) + LOGCO_SIZ_HP * Math.log(XCO_SIZ_HP * siz66 + 1);
 }
 export function maxHP(entity: EntityConstance): number {
     return 10 + additionalHP(entity);
