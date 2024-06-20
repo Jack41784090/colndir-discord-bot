@@ -1,6 +1,7 @@
 import bot from "@bot";
+import { COLNDIR_SERVERID } from "@constants";
 import { Canvas } from "canvas";
-import { ActionRowBuilder, ActionRowData, AttachmentBuilder, ButtonBuilder, ButtonStyle, Colors, EmbedBuilder, Guild, GuildMember, Interaction, MessageCreateOptions, Role, TextBasedChannel, TextChannel } from "discord.js";
+import { ActionRowBuilder, ActionRowData, AttachmentBuilder, ButtonBuilder, ButtonStyle, ColorResolvable, Colors, EmbedBuilder, Guild, GuildMember, Interaction, MessageCreateOptions, Role, TextBasedChannel, TextChannel } from "discord.js";
 import { ProfileManager } from "./InteractionHandler";
 
 //#region Canvas
@@ -27,6 +28,8 @@ function calculateCanvasDimensions(rolesLength: number) {
     };
 }
 function drawDynamicCanvas(roles: Role[]) {
+    if (roles.length <= 0) return new Error("No roles provided.");
+
     const { width, height } = calculateCanvasDimensions(roles.length);
     const canvas = new Canvas(width, height);
     const ctx = canvas.getContext('2d');
@@ -58,11 +61,33 @@ function drawDynamicCanvas(roles: Role[]) {
 //#endregion
 
 //#region Role Management Helper functions
+async function generateColourRoles(guild: Guild): Promise<Role[]> {
+    const roleManager = guild.roles;
+    const promisedRoles: Promise<Role>[] = [];
+    const oldColndir = await bot.guilds.fetch(COLNDIR_SERVERID);
+    const oldRoles = await oldColndir.roles.fetch();
+
+    for (const role of oldRoles.filter(role => role.color && Number(role.permissions.bitfield) === 0).values()) {
+        promisedRoles.push(roleManager.create({
+            name: role.name,
+            color: role.color as ColorResolvable,
+            permissions: [],
+            position: 0
+        }));
+    }
+    return Promise.all(promisedRoles);
+}
 async function getServerColourRoles(guild: Guild) {
     const roles = await guild.roles.fetch();
     const botRoles = await guild.members.fetchMe().then(me => me.roles.cache);
-    const highestRole = botRoles.reduce((highest, role) => role.position > highest.position ? role : highest, botRoles.first());
-    const colourRoles = Array.from(roles.filter(role => role.color && Number(role.permissions.bitfield) === 0 && role.position < (highestRole?.position??0)).values());
+    const highestReachableRole = botRoles.reduce((highest, role) => role.position > highest.position ? role : highest, botRoles.first());
+    const colourRoles = Array.from(
+        roles.filter(role =>
+            role.color &&
+            Number(role.permissions.bitfield) === 0 &&
+            role.position < (highestReachableRole?.position??0))
+        .values()
+    );
     return colourRoles;
 }
 async function initializeChannelRoles(channelID: string) {
@@ -75,6 +100,9 @@ async function initializeChannelRoles(channelID: string) {
         if (!guild) {
             throw new Error("Channel is not in a guild.");
         }
+
+        const gd = await ProfileManager.GuildData(guild.id);
+        if (gd) gd.roleChannelID = channelID;
 
         const colourRoles = await getServerColourRoles(guild);
         console.log('Colour Roles:', colourRoles.map(role => `${role.name}: ${role.color}`).join('\n'));
@@ -143,8 +171,14 @@ function sendRoleSelection(channel: TextBasedChannel, roleArray: Role[], options
             .setFooter({ text: "You can change your colour at any time." })
             .setImage("attachment://colours.png")
     ];
+
+    const buffer = drawDynamicCanvas(roleArray);
+    if (buffer instanceof Error) {
+        console.error(buffer);
+        throw buffer;
+    }
     options.files = [
-        new AttachmentBuilder(drawDynamicCanvas(roleArray))
+        new AttachmentBuilder(buffer)
             .setName("colours.png")
     ];
     channel.send(options);
@@ -167,13 +201,25 @@ export class RoleManagement {
 
     public async checkExistingRoleChannel(serverID: string) {
         const data = await ProfileManager.GuildData(serverID);
-        return data ? await bot.channels.fetch(data.roleChannelID) : null;
+        return data ? await bot.channels.fetch(data.roleChannelID).catch(_ => null) : null;
     }
 
-    public async setUpRoleChannel(channelID: string) {
+    public async setUpRoleChannel(channelID: string, newRoles: boolean = false) {
         const existingMessageID = await this.checkExistingRoleChannel(channelID);
         if (existingMessageID) {
             return new Error("Role management message already exists.");
+        }
+
+        if (newRoles) {
+            const channel = await bot.channels.fetch(channelID);
+            if (!channel?.isTextBased()) {
+                return new Error("Channel is not a text channel.");
+            }
+            const guild = (channel as TextChannel)?.guild;
+            if (!guild) {
+                return new Error("Channel is not in a guild.");
+            }
+            await generateColourRoles(guild);
         }
         return await initializeChannelRoles(channelID);
     }
@@ -196,9 +242,7 @@ export class RoleManagement {
 
         try {
             if (member instanceof GuildMember) {
-                const roles = member.roles.cache.filter(r => !r.color);
-                roles.set(role.id, role);
-                await member.roles.set(roles);
+                await member.roles.add(role)
                 return interaction.editReply({ content: `Role ${role.name} added.`, });
             }
             else {
@@ -208,7 +252,7 @@ export class RoleManagement {
         catch (error) {
             const err = error as Error;
             console.error(err);
-            return interaction.editReply({ content: `Failed to add role ${role.name}. Error: ${err?.message}` });
+            return interaction.editReply({ content: `Failed to add role \`${role.name}\`. Error: \`${err?.message}\`` });
         }
     }
 }

@@ -129,7 +129,10 @@ export async function GetGuildData(serverID: string) {
     const defaultData = GetDefaultGuildData(serverID, fetched || {});
     if (fetched === null) {
         const guildExists = await bot.guilds.fetch(serverID).catch(_ => null);
-        if (!guildExists) return null;
+        if (!guildExists) {
+            console.error(`Guild does not exist [${serverID}]`);
+            return null;
+        }
         await SaveGuildData(serverID, defaultData);
     }
     const gd = NewObject(defaultData, fetched || {})

@@ -80,7 +80,7 @@ class Profile {
 
     async save() {
         console.log(`Saving Data (${this.data.id})...`);
-        
+        this.saveMethod(this.data.id, this.data);
     }
 
     async delete() {
@@ -100,7 +100,7 @@ class EventManager {
         this.profile = profile;
         this.interval = setInterval(() => {
             this.maybeHandle();
-        }, 1000);
+        }, 10 * 1000);
     }
 
     async maybeHandle(): Promise<void> {
@@ -115,6 +115,7 @@ class EventManager {
             if (this.pending.length === 0) {
                 clearInterval(this.interval);
                 await this.profile.delete(); 
+                await this.profile.save();
                 return;
             }
             this.handling = this.pending;
@@ -241,6 +242,7 @@ export class ProfileManager {
         const instance = this.Instance();
         const existingProfile = instance.profileMap.get(id);
         if (existingProfile) {
+            console.log(`Profile (${id}) already exists.`);
             return existingProfile;
         }
         else {

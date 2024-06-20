@@ -1,6 +1,6 @@
 import bot from '@bot';
 import { RoleManagement } from '@classes/RoleManagement';
-import { getErrorEmbed } from '@functions';
+import { getErrorMessage } from '@functions';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { PermissionFlagsBits } from 'discord.js';
 
@@ -27,7 +27,13 @@ export class SetUpRoleChannelCommand extends Command {
                 .addBooleanOption((option) =>
                     option
                         .setName('overwrite')
-                        .setDescription('Overwrite existing role selection message')
+                        .setDescription('Overwrite existing role selection channel; deletes all bot messages in the channel if true.')
+                        .setRequired(false)
+                )
+                .addBooleanOption((option) =>
+                    option
+                        .setName('new-roles')
+                        .setDescription('Set up new roles for the role selection')
                         .setRequired(false)
                 )
         );
@@ -42,9 +48,9 @@ export class SetUpRoleChannelCommand extends Command {
         }
 
         const roleManagement = RoleManagement.getInstance();
-        const overwrite = interaction.options.getBoolean('overwrite') || false;
+        const overwriteExistingRoleChannel = interaction.options.getBoolean('overwrite') || false;
         const existingRoleChannel = await roleManagement.checkExistingRoleChannel(interaction.guildId ?? '');
-        if (overwrite && existingRoleChannel?.isTextBased()) {
+        if (overwriteExistingRoleChannel && existingRoleChannel?.isTextBased()) {
             const botMessages = await existingRoleChannel.messages.fetch();
             botMessages.forEach(m => m.author.id === bot.user?.id && m.delete());
         }
@@ -52,9 +58,11 @@ export class SetUpRoleChannelCommand extends Command {
             return interaction.editReply({ content: "Role management message already exists." });
         }
 
-        const result = await roleManagement.setUpRoleChannel(channelID);
+        const shouldAddNewRoles = interaction.options.getBoolean('new-roles') || false;
+        const result = await roleManagement.setUpRoleChannel(channelID, shouldAddNewRoles);
         if (result instanceof Error) {
-            return interaction.editReply({ embeds: [getErrorEmbed(result.message)] });
+            console.error(result);
+            return interaction.editReply(getErrorMessage(`Error setting up role channel: ${result.message}`));
         }
         return interaction.deleteReply();
     }
