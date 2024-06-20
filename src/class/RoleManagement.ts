@@ -242,6 +242,10 @@ export class RoleManagement {
 
         try {
             if (member instanceof GuildMember) {
+                const existingColourRoles = member.roles.cache.filter(role => role.color && Number(role.permissions.bitfield) === 0 );
+                if (existingColourRoles.size > 0) {
+                    await member.roles.remove(existingColourRoles);
+                }
                 await member.roles.add(role)
                 return interaction.editReply({ content: `Role ${role.name} added.`, });
             }
