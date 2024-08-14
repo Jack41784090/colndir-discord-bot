@@ -11,4 +11,6 @@ const bot = new SapphireClient({
     ]
 });
 
+bot.rest.on('rateLimited', console.log);
+
 export default bot;

@@ -12,6 +12,7 @@
     "host": "forever stopall && npx tsc-alias -p tsconfig.json && forever start ./dist/index.js"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.14.4",
     "@sapphire/framework": "^5.1.0",
     "ansi-colors": "^4.1.3",
     "canvas": "^2.11.2",
@@ -21,8 +22,7 @@
     "googleapis": "^134.0.0",
     "jstat": "^1.9.6",
     "mathjs": "^12.4.2",
-    "openai": "^4.38.3",
-    "ytdl-core": "^4.11.5"
+    "openai": "^4.38.3"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

@@ -1,7 +1,6 @@
+import ytdl from '@distube/ytdl-core';
 import { ChatInputCommand, Command } from '@sapphire/framework';
 import { buffer } from 'stream/consumers';
-import ytdl from 'ytdl-core';
-
 
 export class FetchVideoCommand extends Command {
     public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -34,9 +33,7 @@ export class FetchVideoCommand extends Command {
                             name: 'mp3', value: '.mp3'
                         }, {
                             name: 'mp4', value: '.mp4'
-                        })
-                )
-        );
+                        })));
     }
 
     public async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
@@ -52,7 +49,7 @@ export class FetchVideoCommand extends Command {
 
         if (videoInfo === null || videoInfo instanceof Error) {
             if (videoInfo) console.error(videoInfo);
-            return interaction.editReply('Failed to fetch video\n' + videoInfo?.message ?? '');
+            return interaction.editReply('Failed to fetch video\n' + videoInfo?.message);
         }
         else {
             return await interaction.channel?.send({

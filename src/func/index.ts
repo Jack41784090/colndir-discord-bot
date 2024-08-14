@@ -1,7 +1,7 @@
 import bot from "@bot";
 import { NORM_CHAR_LIMIT } from "@constants";
+import ytdl from '@distube/ytdl-core';
 import { AnyThreadChannel, BaseGuildTextChannel, BaseMessageOptions, CategoryChannel, ChannelType, Colors, EmbedBuilder, EmbedData, ForumChannel, Guild, GuildForumTag, Message, MessageCreateOptions, NonThreadGuildBasedChannel, TextBasedChannel, TextChannel, ThreadChannel, VoiceBasedChannel } from "discord.js";
-import ytdl from "ytdl-core";
 
 export function capitalize(string: string): string {
     return string.charAt(0).toUpperCase() + string.slice(1);
