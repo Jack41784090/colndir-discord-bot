@@ -2,7 +2,7 @@ import { AOE, AbilityName, AbilityTrigger, EntityStats, Location, StatusEffectAp
 import { abilitiesMap } from "@data/abilities";
 import { statusEffectMap } from "@data/statusEffects";
 import { NewObject, getCharArray, getDefaultAbility, getDefaultStatusEffect } from "@functions";
-import { EventEmitter } from "events";
+import EventEmitter from "node:events";
 import { Battle, Entity } from "./Battle";
 
 export class StatusEffect implements iStatusEffect {

@@ -4,7 +4,8 @@ import { AbilityName, AbilityTrigger, Armour, BattleConfig, BattleField, BeforeA
 import { addHPBar, attack, capitalize, damage, defaultArmour, defaultWeapon, findDifference, getAbilityState, GetCombatCharacter, getLoadingEmbed, getRealAbilityName, isSubset, maxHP, maxOrganisation, maxPosture, maxStamina, properPrint, setUpInteractionCollect, stringifyAbility, uniformRandom, updateRoundEmbed, virtual } from "@functions";
 import colors from 'ansi-colors';
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CollectedInteraction, Collection, EmbedBuilder, Interaction, InteractionCollector, InteractionResponse, Message, StringSelectMenuBuilder, StringSelectMenuInteraction, TextBasedChannel, User } from "discord.js";
-import { EventEmitter } from "events";
+
+import EventEmitter from "node:events";
 import { Ability, StatusEffect } from "./Ability";
 import { ProfileManager } from "./InteractionHandler";
 
