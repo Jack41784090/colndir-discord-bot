@@ -15,7 +15,13 @@ export class SetApproveCommand extends Command {
         registry.registerChatInputCommand((builder) =>
             builder
                 .setName('set-approved')
-                .setDescription('Set this channel as the channel to approve characters.'));
+                .setDescription('Set this channel as the channel to approve characters.')
+                .addBooleanOption((options) => 
+                    options
+                        .setName('pending')
+                        .setDescription('Set as the pending channel instead.')
+                        .setRequired(false))
+                );
     }
 
     public async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
@@ -28,9 +34,16 @@ export class SetApproveCommand extends Command {
                 return interaction.editReply(getErrorMessage(`Registration failure: ${setApproveGuildDataAccess.message}`));
             }
 
+            const pending = interaction.options.getBoolean('pending');
             const guildData = setApproveGuildDataAccess.profile.data as GuildData;
-            guildData.approvedChannelID = interaction.channelId;
-            return interaction.editReply('Channel set as the approved channel.');
+            if (pending) {
+                guildData.pendingChannelID = interaction.channelId;
+                return interaction.editReply('Channel set as the pending channel.');
+            }
+            else {
+                guildData.approvedChannelID = interaction.channelId;
+                return interaction.editReply('Channel set as the approved channel.');
+            }
         }
 
         return interaction.editReply('Failed to set leave message: Guild ID not found.')

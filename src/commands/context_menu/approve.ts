@@ -70,9 +70,9 @@ export class ApproveContextMenu extends Command {
         const validChannels = [guildData.approvedChannelID, guildData.pendingChannelID];
         if (validChannels.every(id => id !== interaction.channelId)) {
             return interaction.followUp(getErrorMessage(`Approved messages are not in ${
-                interaction.guild?.channels.cache.get(guildData.approvedChannelID)?.toString() || 'approved channel'
+                interaction.guild?.channels.cache.get(guildData.approvedChannelID)?.name || 'approved channel'
             } or ${
-                interaction.guild?.channels.cache.get(guildData.pendingChannelID)?.toString() || 'pending channel'
+                interaction.guild?.channels.cache.get(guildData.pendingChannelID)?.name || 'pending channel'
             } channel`));
         }
         
@@ -113,14 +113,14 @@ export class ApproveContextMenu extends Command {
             story = consecutiveMes.map(m => m.content).join('\n') ?? ''; 
         }
 
-        if ( story instanceof Error) {
+        if ( (story as string | Error) instanceof Error) {
             console.log(ansiColors.red(`|| Error: ${typeof story === 'string' ? story : (story as Error).message}`));
             const errorMessage = typeof story === 'string' ? story : (story as Error).message;
             return interaction.followUp(getErrorMessage(errorMessage ?? "Story returned an empty string."));
         }
 
         // 3. send request to gpt
-        const comp = await sendCharacterRegistrationRequest(story);
+        const comp = await sendCharacterRegistrationRequest(story as string);
         if (comp instanceof Error) {
             console.error(comp);
             return interaction.followUp(getErrorMessage(comp.message));
