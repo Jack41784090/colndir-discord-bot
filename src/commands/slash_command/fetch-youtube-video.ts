@@ -52,14 +52,16 @@ export class FetchVideoCommand extends Command {
             return interaction.editReply('Failed to fetch video\n' + videoInfo?.message);
         }
         else {
-            return await interaction.channel?.send({
-                files: [ { attachment: await buffer(videoInfo), name: videoName + videoFormat } ],
-            })
-                .then(() => interaction.deleteReply())
-                .catch(e => {
-                    console.error(e);
-                    interaction.editReply('Failed to send video\n' + e.message);
+            if (interaction.channel?.isSendable()) {
+                return await interaction.channel?.send({
+                    files: [ { attachment: await buffer(videoInfo), name: videoName + videoFormat } ],
                 })
+                    .then(() => interaction.deleteReply())
+                    .catch(e => {
+                        console.error(e);
+                        interaction.editReply('Failed to send video\n' + e.message);
+                    })
+            }
         }
     }
 }

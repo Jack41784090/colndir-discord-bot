@@ -181,7 +181,7 @@ function sendRoleSelection(channel: TextBasedChannel, roleArray: Role[], options
         new AttachmentBuilder(buffer)
             .setName("colours.png")
     ];
-    channel.send(options);
+    if (channel.isSendable()) channel.send(options);
 }
 //#endregion
 

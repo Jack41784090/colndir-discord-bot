@@ -1,5 +1,5 @@
 import { ChatInputCommand, Command } from '@sapphire/framework'
-import { DiscordAPIError, EmbedBuilder, EmbedData } from 'discord.js'
+import { DiscordAPIError, EmbedBuilder, EmbedData, PartialGroupDMChannel } from 'discord.js'
 
 // PING: Sends a "followUp" to the server and returning, calculating the difference in timestamp to get an estimate on ping.
 const exampleEmbed: EmbedData = {
@@ -97,6 +97,7 @@ export class SendEmbedCommand extends Command {
         
         const embed = new EmbedBuilder(reformed)
         await interaction.deleteReply();
+        if (interaction.channel instanceof PartialGroupDMChannel) return;
         interaction.channel?.send({ embeds: [embed] })
             .catch((error) => {
                 if (error instanceof DiscordAPIError) {

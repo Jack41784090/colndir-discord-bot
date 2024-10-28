@@ -23,6 +23,7 @@ class ActionRequest {
     }
 
     public static async Create(b: Battle, readied: string[]) {
+        if (!b.channel.isSendable()) return;
         const instance = new ActionRequest(b, await b.channel.send({ embeds: [ getLoadingEmbed() ] }));
         instance.readied = new Set(readied);
         return instance;
@@ -97,7 +98,7 @@ class ActionRequest {
             this.interfaceMessage = await this.interfaceMessage.edit(this.battle.attackInterface_get()).catch(console.error) ?? null;
             return this.interfaceMessage;
         }
-        else {
+        else if (this.battle.channel.isSendable()) {
             this.interfaceMessage = await this.battle.channel.send(this.battle.attackInterface_get()).catch(console.error) ?? null;
             return this.interfaceMessage;
         }
@@ -695,7 +696,7 @@ export class Battle extends EventEmitter {
     }
     private async requestAction(userID: string[]): Promise<unknown> {
         console.log(`【Request Action】 Requesting action from ${userID.join(', ')}`)
-        return ActionRequest.Create(this, userID).then(ar => ar.setupInteractionCollector());
+        return ActionRequest.Create(this, userID).then(ar => ar?.setupInteractionCollector());
     }
 
     private dealWithWindupHit(attacker: Entity, target: Entity): BattleResult {
@@ -913,7 +914,7 @@ export class Battle extends EventEmitter {
             this.syncVirtualandActual(r.vattacker, r.attacker);
             this.syncVirtualandActual(r.vTarget, r.target);
         }
-        this.channel.send({ embeds: [roundEmbed] });
+        if (this.channel.isSendable()) this.channel.send({ embeds: [roundEmbed] });
         
         setTimeout(() => {
             this.round();

@@ -1,0 +1,11 @@
+node_modules
+.github
+.vscode
+.idea
+firebase.json
+googleapi.json
+package-lock.json
+.gitignore
+.git
+.dockerignore
+dockerfile

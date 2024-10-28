@@ -9,7 +9,8 @@
     "rimraf": "./node_modules/rimraf/bin.js",
     "clean": "rimraf dist/",
     "compile": "npm run clean && tsc -p ./",
-    "host": "forever stopall && npx tsc-alias -p tsconfig.json && forever start ./dist/index.js"
+    "host": "forever stopall && npx tsc-alias -p tsconfig.json && forever start ./dist/index.js",
+    "docker-build": "docker build -t colndir-bot ."
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.14.4",
@@ -22,12 +23,15 @@
     "googleapis": "^134.0.0",
     "jstat": "^1.9.6",
     "mathjs": "^12.4.2",
-    "openai": "^4.38.3"
+    "openai": "^4.38.3",
+    "dotenv": "^16.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
-    "dotenv": "^16.4.5",
     "rimraf": "^5.0.5",
     "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "discord-api-types": "0.37.101"
   }
 }
