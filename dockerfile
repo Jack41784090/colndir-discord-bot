@@ -1,26 +1,27 @@
+# 1. Build
+
 FROM node:20-slim as BUILD
 
 WORKDIR /condor
 
-COPY package*.json ./
-
-RUN npm install
-
 COPY . .
 
-RUN ls -la && cat package-lock.json && npm run compile
+RUN npm install && npm run compile
 
+# 2. Export
 
-# FROM node:20-slim
+FROM node:20-slim
 
-# WORKDIR /condor
+WORKDIR /condor
 
-# COPY package*.json ./
+COPY package.json ./
+COPY tsconfig.json ./
 
-# RUN npm install --omit=dev
+RUN ls -la && npm install --omit=dev
 
-# COPY --from=BUILD /condor/dist ./dist
+COPY --from=BUILD /condor/dist ./dist
 
-# COPY .env ./
+COPY .env ./
 
-# CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "npm run start || tail -f /dev/null"]
+
