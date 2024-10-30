@@ -8,77 +8,96 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Deploy to Google Compute Engine on master branch push
+  build:
+    name: Checkout repository
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: NPM Install, Build and Tests
+  publish:
+    needs: build
+    name: Publish image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
         run: |
-          mkdir out
-          npm install
-          npm run build --if-present
-          npm run test --if-present
-          rsync -av --exclude 'out' ./ out
-          ls -la
+          docker buildx build -t ${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest \
+            --build-arg "TOKEN=${{ secrets.TOKEN }}" \
+            --build-arg "EMOJI_SERVER_ID=${{ secrets.EMOJI_SERVER_ID }}" \
+            --build-arg "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
+            --build-arg "FB_PROJECT_ID=${{ secrets.FB_PROJECT_ID }}" \
+            --build-arg "FB_PRIVATE_KEY=${{ secrets.FB_PRIVATE_KEY }}" \
+            --build-arg "FB_CLIENT_EMAIL=${{ secrets.FB_CLIENT_EMAIL }}" \
+            --build-arg "GOOGLEAPI_PRIVATE_KEY=${{ secrets.GOOGLEAPI_PRIVATE_KEY }}" \
+            --build-arg "GOOGLEAPI_CLIENT_EMAIL=${{ secrets.GOOGLEAPI_CLIENT_EMAIL }}" .
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Compile TypeScript into JavaScript
-        run: |
-          cd out
-          tsc
+      - name: Tag Docker image
+        run: docker tag ${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest
 
-      # - name: move everything to Compute Engine
-      #   uses: easingthemes/ssh-deploy@main
-      #   with:
-      #     ARGS: "--delete -rlgoDzvc -i"
-      #     SSH_PRIVATE_KEY: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-      #     REMOTE_HOST: ${{ secrets.COLNDIR_HOST_IP }}
-      #     REMOTE_USER: ${{ secrets.COLNDIR_HOST_USERNAME }}
-      #     TARGET: ${{ secrets.TARGET_DIR }}
-      #     SOURCE: "out/*"
-      #     SCRIPT_BEFORE: |
-      #       sudo apt-get update
-      #       sudo apt-get install rsync
+      - name: Push Docker image to Docker Hub
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest
+  
+  # deploy:
+  #   needs: publish
+  #   name: Deploy to Google Compute Engine on master branch push
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Set up Node.js
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: 'npm'
 
-      - name: Copy files via SCP
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.COLNDIR_HOST_IP }}
-          username: ${{ secrets.COLNDIR_HOST_USERNAME }}
-          key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-          port: 22
-          source: "out/*"
-          target: ${{ secrets.TARGET_DIR }}
-          rm: true
-          overwrite: true
+  #     - name: Compile TypeScript into JavaScript
+  #       run: |
+  #         cd out
+  #         tsc
 
-      - name: Run Commands on the Google Compute Engine
-        uses: appleboy/ssh-action@master
-        env:
-          TARGET_DIR: ${{ secrets.TARGET_DIR }}
-          TOKEN: ${{secrets.TOKEN}}
-          FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
-          FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
-          FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLEAPI_PRIVATE_KEY: ${{secrets.GOOGLEAPI_PRIVATE_KEY}}
-          GOOGLEAPI_CLIENT_EMAIL: ${{secrets.GOOGLEAPI_CLIENT_EMAIL}}
-        with:
-          host: ${{ secrets.COLNDIR_HOST_IP }}
-          username: ${{ secrets.COLNDIR_HOST_USERNAME }}
-          key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-          envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY,GOOGLEAPI_PRIVATE_KEY,GOOGLEAPI_CLIENT_EMAIL
-          script: |
-            echo $TOKEN > token.txt
-            cd $TARGET_DIR
-            cd out
-            npm run host
+  #     - name: Copy files via SCP
+  #       uses: appleboy/scp-action@master
+  #       with:
+  #         host: ${{ secrets.COLNDIR_HOST_IP }}
+  #         username: ${{ secrets.COLNDIR_HOST_USERNAME }}
+  #         key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+  #         port: 22
+  #         source: "out/*"
+  #         target: ${{ secrets.TARGET_DIR }}
+  #         rm: true
+  #         overwrite: true
+
+  #     - name: Run Commands on the Google Compute Engine
+  #       uses: appleboy/ssh-action@master
+  #       env:
+  #         TARGET_DIR: ${{ secrets.TARGET_DIR }}
+  #         TOKEN: ${{secrets.TOKEN}}
+  #         FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
+  #         FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
+  #         FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
+  #         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  #         GOOGLEAPI_PRIVATE_KEY: ${{secrets.GOOGLEAPI_PRIVATE_KEY}}
+  #         GOOGLEAPI_CLIENT_EMAIL: ${{secrets.GOOGLEAPI_CLIENT_EMAIL}}
+  #       with:
+  #         host: ${{ secrets.COLNDIR_HOST_IP }}
+  #         username: ${{ secrets.COLNDIR_HOST_USERNAME }}
+  #         key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
+  #         envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY,GOOGLEAPI_PRIVATE_KEY,GOOGLEAPI_CLIENT_EMAIL
+  #         script: |
+  #           echo $TOKEN > token.txt
+  #           cd $TARGET_DIR
+  #           cd out
+  #           npm run host
 
