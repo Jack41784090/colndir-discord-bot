@@ -16,25 +16,32 @@ jobs:
         uses: actions/checkout@v3
 
   publish:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
     needs: build
     name: Publish image to Docker Hub
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: Authenticate with Google
+        uses: google-github-actions/auth@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          project_id: ${{ secrets.FB_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.FB_PROJECT_ID }}
 
       - name: Build Docker image
         run: |
-          docker buildx build -t ${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest \
+          gcloud auth configure-docker ${{vars.REGION}}-docker.pkg.dev
+          IMAGE="${{vars.REGION}}-docker.pkg.dev/${{secrets.FB_PROJECT_ID}}/colndir-botting/${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest"
+          docker buildx build -t $IMAGE \
             --build-arg "TOKEN=${{ secrets.TOKEN }}" \
             --build-arg "EMOJI_SERVER_ID=${{ secrets.EMOJI_SERVER_ID }}" \
             --build-arg "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
@@ -43,13 +50,7 @@ jobs:
             --build-arg "FB_CLIENT_EMAIL=${{ secrets.FB_CLIENT_EMAIL }}" \
             --build-arg "GOOGLEAPI_PRIVATE_KEY=${{ secrets.GOOGLEAPI_PRIVATE_KEY }}" \
             --build-arg "GOOGLEAPI_CLIENT_EMAIL=${{ secrets.GOOGLEAPI_CLIENT_EMAIL }}" .
-
-
-      - name: Tag Docker image
-        run: docker tag ${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest
-
-      - name: Push Docker image to Docker Hub
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest
+          docker push $IMAGE
   
   # deploy:
   #   needs: publish
