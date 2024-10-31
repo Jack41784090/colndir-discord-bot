@@ -49,7 +49,8 @@ jobs:
             --build-arg "FB_PRIVATE_KEY=${{ secrets.FB_PRIVATE_KEY }}" \
             --build-arg "FB_CLIENT_EMAIL=${{ secrets.FB_CLIENT_EMAIL }}" \
             --build-arg "GOOGLEAPI_PRIVATE_KEY=${{ secrets.GOOGLEAPI_PRIVATE_KEY }}" \
-            --build-arg "GOOGLEAPI_CLIENT_EMAIL=${{ secrets.GOOGLEAPI_CLIENT_EMAIL }}" .
+            --build-arg "GOOGLEAPI_CLIENT_EMAIL=${{ secrets.GOOGLEAPI_CLIENT_EMAIL }}" \
+            --build-arg "CLOUDRUN_PORT=${{ secrets.CLOUDRUN_PORT }}" .
           docker push $IMAGE
   
   # deploy:
