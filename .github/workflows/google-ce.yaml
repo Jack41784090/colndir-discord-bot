@@ -53,53 +53,27 @@ jobs:
             --build-arg "CLOUDRUN_PORT=${{ secrets.CLOUDRUN_PORT }}" .
           docker push $IMAGE
   
-  # deploy:
-  #   needs: publish
-  #   name: Deploy to Google Compute Engine on master branch push
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Set up Node.js
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ env.NODE_VERSION }}
-  #         cache: 'npm'
+  deploy:
+    needs: publish
+    name: Deploy to Google Cloud Run using the built docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate with Google
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ secrets.FB_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
 
-  #     - name: Compile TypeScript into JavaScript
-  #       run: |
-  #         cd out
-  #         tsc
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.FB_PROJECT_ID }}
 
-  #     - name: Copy files via SCP
-  #       uses: appleboy/scp-action@master
-  #       with:
-  #         host: ${{ secrets.COLNDIR_HOST_IP }}
-  #         username: ${{ secrets.COLNDIR_HOST_USERNAME }}
-  #         key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-  #         port: 22
-  #         source: "out/*"
-  #         target: ${{ secrets.TARGET_DIR }}
-  #         rm: true
-  #         overwrite: true
-
-  #     - name: Run Commands on the Google Compute Engine
-  #       uses: appleboy/ssh-action@master
-  #       env:
-  #         TARGET_DIR: ${{ secrets.TARGET_DIR }}
-  #         TOKEN: ${{secrets.TOKEN}}
-  #         FB_PROJECT_ID: ${{secrets.FB_PROJECT_ID}}
-  #         FB_PRIVATE_KEY: ${{secrets.FB_PRIVATE_KEY}}
-  #         FB_CLIENT_EMAIL: ${{secrets.FB_CLIENT_EMAIL}}
-  #         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-  #         GOOGLEAPI_PRIVATE_KEY: ${{secrets.GOOGLEAPI_PRIVATE_KEY}}
-  #         GOOGLEAPI_CLIENT_EMAIL: ${{secrets.GOOGLEAPI_CLIENT_EMAIL}}
-  #       with:
-  #         host: ${{ secrets.COLNDIR_HOST_IP }}
-  #         username: ${{ secrets.COLNDIR_HOST_USERNAME }}
-  #         key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
-  #         envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY,GOOGLEAPI_PRIVATE_KEY,GOOGLEAPI_CLIENT_EMAIL
-  #         script: |
-  #           echo $TOKEN > token.txt
-  #           cd $TARGET_DIR
-  #           cd out
-  #           npm run host
-
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ secrets.CLOUDRUN_SERVICE_NAME }} \
+            --image ${{vars.REGION}}-docker.pkg.dev/${{secrets.FB_PROJECT_ID}}/colndir-botting/${{ secrets.DOCKER_IMAGE_NAME_STAGING }}:latest \
+            --platform managed \
+            --region ${{vars.REGION}} \
+            --allow-unauthenticated \
+            --set-env-vars "TOKEN=${{ secrets.TOKEN }},EMOJI_SERVER_ID=${{ secrets.EMOJI_SERVER_ID }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},FB_PROJECT_ID=${{ secrets.FB_PROJECT_ID }},FB_PRIVATE_KEY=${{ secrets.FB_PRIVATE_KEY }},FB_CLIENT_EMAIL=${{ secrets.FB_CLIENT_EMAIL }},GOOGLEAPI_PRIVATE_KEY=${{ secrets.GOOGLEAPI_PRIVATE_KEY }},GOOGLEAPI_CLIENT_EMAIL=${{ secrets.GOOGLEAPI_CLIENT_EMAIL }},CLOUDRUN_PORT=${{ secrets.CLOUDRUN_PORT }}"
