@@ -86,20 +86,4 @@ jobs:
       - name: Create Scheduler
         run: |
           GCP_APP_URL=$(gcloud run services list --platform=managed --region=${{vars.REGION}} --filter="status.address.url ~ ${{secrets.FB_PROJECT_ID}}" --format="value(status.address.url)")
-          gcloud scheduler jobs create http ${{ vars.CLOUDRUN_SERVICE_NAME }}-scheduler \
-            --schedule="* * * * *" \
-            --uri "${GCP_APP_URL}" \
-            --http-method "GET" \
-            --message-body "token=${{ secrets.TOKEN }}&emoji_server_id=${{ secrets.EMOJI_SERVER_ID }}&openai_api_key=${{ secrets.OPENAI_API_KEY }}&fb_project_id=${{ secrets.FB_PROJECT_ID }}&fb_private_key=${{ secrets.FB_PRIVATE_KEY }}&fb_client_email=${{ secrets.FB_CLIENT_EMAIL }}&googleapi_private_key=${{ secrets.GOOGLEAPI_PRIVATE_KEY }}&googleapi_client_email=${{ secrets.GOOGLEAPI_CLIENT_EMAIL }}&cloudrun_port=${{ secrets.CLOUDRUN_PORT }}"
-            --oauth-service-account-email "${{ secrets.FB_PROJECT_ID }}@appspot.gserviceaccount.com"
-            --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
-            --max-retry-attempts 3
-            --max-backoff "7d"
-            --min-backoff "1h"
-            --max-retry-duration "7d"
-            --min-retry-duration "1h"
-            --retry-deadline "7d"
-            --timeout "540s"
-            --project ${{ secrets.FB_PROJECT_ID }}
-            --region ${{vars.REGION }}
-            --quiet
+          gcloud scheduler jobs create http ${{ vars.CLOUDRUN_SERVICE_NAME }}-scheduler --schedule="* * * * *" --uri="${GCP_APP_URL}" --http-method GET
