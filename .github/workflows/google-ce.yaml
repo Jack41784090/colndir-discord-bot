@@ -85,9 +85,7 @@ jobs:
 
       - name: Create Scheduler
         run: |
-          GCP_APP_URL=$(gcloud run services list --platform=managed --region=${GCP_REGION} \
-            --filter="status.address.url ~ pokecenter-${ENVSUFFIX}" \
-            --format="value(status.address.url)")
+          GCP_APP_URL=$(gcloud run services list --platform=managed --region=${vars.REGION} --filter="status.address.url ~ ${secrets.FB_PROJECT_ID}" --format="value(status.address.url)")
           gcloud scheduler jobs create http ${{ vars.CLOUDRUN_SERVICE_NAME }}-scheduler \
             --schedule="* * * * *" \
             --uri "${GCP_APP_URL}" \
