@@ -69,11 +69,9 @@ export class ApproveContextMenu extends Command {
 
         const validChannels = [guildData.approvedChannelID, guildData.pendingChannelID];
         if (validChannels.every(id => id !== interaction.channelId)) {
-            return interaction.followUp(getErrorMessage(`Approved messages are not in ${
-                interaction.guild?.channels.cache.get(guildData.approvedChannelID)?.name || 'approved channel'
-            } or ${
-                interaction.guild?.channels.cache.get(guildData.pendingChannelID)?.name || 'pending channel'
-            } channel`));
+            const approvedChannelName = interaction.guild?.channels.cache.get(guildData.approvedChannelID)?.name || 'default approved';
+            const pendingChannelName = interaction.guild?.channels.cache.get(guildData.pendingChannelID)?.name || 'default pending'
+            return interaction.followUp(getErrorMessage(`Approved messages are not in "${approvedChannelName}" or "${pendingChannelName}".`));
         }
         
         console.log(ansiColors.bold(`Approving character...`))

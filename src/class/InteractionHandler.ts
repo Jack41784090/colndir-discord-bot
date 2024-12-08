@@ -1,5 +1,5 @@
 import { CombatCharacter, GetScript, GuildData, ProfileInteractionType, ProfileType, SaveScript, UserData, ValidProfileData } from "@ctypes";
-import { GetCombatCharacter, GetGuildData, getPromiseStatus, GetUserData, SaveGuildData, SaveUserData } from '@functions';
+import { GetCombatCharacter, GetGuildData, getPromiseStatus, GetUserData, SaveCombatCharacter, SaveGuildData, SaveUserData } from '@functions';
 import { Message } from 'discord.js';
 import { Battle } from "./Battle";
 
@@ -24,17 +24,17 @@ function Script(method: 'get' | 'save', type_data: ProfileType | ValidProfileDat
         const type = type_data;
         switch (type) {
             case ProfileType.CombatCharacter:
-                return method === 'get' ? GetCombatCharacter : SaveUserData;
+                return method === 'get' ? GetCombatCharacter : SaveCombatCharacter;
             case ProfileType.Guild:
-                return method === 'get' ? GetGuildData : SaveUserData;
+                return method === 'get' ? GetGuildData : SaveGuildData;
             case ProfileType.User:
                 return method === 'get' ? GetUserData : SaveUserData;
         }
     }
 
     if (isUserData(type_data)) return method === 'get' ? GetUserData : SaveUserData;
-    if (isGuildData(type_data)) return method === 'get' ? GetGuildData : SaveUserData;
-    if (isCombatCharacter(type_data)) return method === 'get' ? GetCombatCharacter : SaveUserData;
+    if (isGuildData(type_data)) return method === 'get' ? GetGuildData : SaveGuildData;
+    if (isCombatCharacter(type_data)) return method === 'get' ? GetCombatCharacter : SaveCombatCharacter;
 
     throw new Error("Invalid data type provided to Script.");
 }
