@@ -64,7 +64,10 @@ jobs:
           key: ${{ secrets.COLNDIR_HOST_PRIVATE_KEY }}
           envs: TARGET_DIR,TOKEN,FB_PROJECT_ID,FB_PRIVATE_KEY,FB_CLIENT_EMAIL,OPENAI_API_KEY,GOOGLEAPI_PRIVATE_KEY,GOOGLEAPI_CLIENT_EMAIL
           script: |
+            sudo apt update
+            sudo apt install -y nodejs npm
             echo $TOKEN > token.txt
             cd $TARGET_DIR
             cd out
+            npm install
             npm run host
