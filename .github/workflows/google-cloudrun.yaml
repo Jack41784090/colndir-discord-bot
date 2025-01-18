@@ -1,4 +1,4 @@
-name: Push-to-Google-CE
+name: Push-to-Google-Cloudrun
 
 on:
   workflow_dispatch:
