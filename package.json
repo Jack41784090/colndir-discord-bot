@@ -28,7 +28,6 @@
   "devDependencies": {
     "@types/node": "^20.12.7",
     "rimraf": "^5.0.5",
-    "forever": "^4.0.3",
     "typescript": "^5.4.5"
   },
   "overrides": {

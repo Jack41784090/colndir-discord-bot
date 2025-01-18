@@ -69,5 +69,5 @@ jobs:
             echo $TOKEN > token.txt
             cd $TARGET_DIR
             cd out
-            npm install
+            npm install -g forever
             npm run host
