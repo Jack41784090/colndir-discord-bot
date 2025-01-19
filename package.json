@@ -9,7 +9,7 @@
     "rimraf": "./node_modules/rimraf/bin.js",
     "clean": "rimraf dist/",
     "compile": "npm run clean && tsc -p ./",
-    "host": "forever stopall && npx tsc-alias -p tsconfig.json && forever start ./dist/index.js",
+    "host": "pm2 stop all && npx tsc-alias -p tsconfig.json && pm2 start ./dist/index.js",
     "docker-build": "docker build -t colndir-bot ."
   },
   "dependencies": {
