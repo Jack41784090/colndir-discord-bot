@@ -72,5 +72,6 @@ jobs:
             sudo npm rebuild
             sudo npm install -g pm2
             sudo npm install -g tsc-alias
-            pm2 delete 0
-            sudo npm run host
+            tsc-alias -p tsconfig.json
+            pm2 delete "colndir"
+            pm2 start dist/index.js --name "colndir"
