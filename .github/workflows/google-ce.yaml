@@ -69,5 +69,8 @@ jobs:
             echo $TOKEN > token.txt
             cd $TARGET_DIR
             cd out
+            sudo npm rebuild
             sudo npm install -g pm2
+            sudo npm install -g tsc-alias
+            pm2 delete 0
             sudo npm run host
